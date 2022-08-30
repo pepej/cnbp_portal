@@ -1,0 +1,74 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: diego
+ * Date: 19/12/14
+ * Time: 23:27
+ */
+
+
+function youmax_menu(){
+
+    $items['admin/config/youmax'] = array(
+        'title' => 'Youmax settings',
+        'type' => MENU_NORMAL_ITEM,
+        'page callback' => 'youmax_config',
+        // Page callback, etc. need to be added here.
+    );
+    $items['youmax'] = array(
+        'title' => t('Videos'),
+        'page callback' => 'youmax_page',
+        'access arguments' => array('access content'),
+        'type' => MENU_SUGGESTED_ITEM,
+    );
+    return $items;
+
+
+    }
+
+
+
+function youmax_page(){
+
+    drupal_add_js(base_path().'sites/all/libraries/youmax/youmax.js');
+
+    $script='
+            <script type="text/javascript">
+             //youtube channel URL (mandatory) -----------------------------
+
+            youTubeChannelURL = "https://www.youtube.com/user/casarosada";
+            //optional parameter-----------------------------------------------
+            //youTubePlaylistURL = "http://www.youtube.com/playlist?list=PLHFlHpPjgk713fMv5O4s4Fv7k6yTkXwkV";
+            youmaxDefaultTab = "uploads";
+            youmaxColumns = 5;
+            youmaxWidgetWidth = 1140;
+            youmaxWidgetHeight = 8000;
+            showFeaturedVideoOnLoad = false;
+            showVideoInLightbox = true;
+            jQuery(document).ready(function(){prepareYoumax();});
+
+            </script>
+            <div id="youmax"></div>';
+
+    $styles='<style>
+
+#youmax-header{display:none !important;}
+#youmax-featured {display:none !important}
+.youmax-video-list-title {
+max-width: 100%;
+max-height: 45px;
+
+}
+
+</style>';
+
+    return $script.$styles;
+
+}
+
+
+
+
+function youmax_config(){
+    return "config";
+}

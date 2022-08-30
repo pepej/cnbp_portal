@@ -1,0 +1,4 @@
+name = Pager & Share
+description = paginado por tipos de contenidos y sharing
+core = 7.x
+package = CW Modules

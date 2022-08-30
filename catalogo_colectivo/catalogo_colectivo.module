@@ -1,0 +1,45 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: diego
+ * Date: 23/10/15
+ * Time: 7:47 PM
+ */
+
+module_load_include('inc', 'catalogo_colectivo', 'catalogo_colectivo');
+
+/**
+ * Hook Menu
+ * @return mixed
+ */
+
+function catalogo_colectivo_menu(){
+
+
+    $items['catalogo_colectivo'] = array(
+        'title' => t('Catálogo colectivo'),
+        'page callback' => 'catalogo_colectivo_page',
+        'access arguments' => array('access content'),
+        'type' => MENU_SUGGESTED_ITEM,
+    );
+
+
+
+    return $items;
+
+
+    }
+
+
+/**
+ * Render the Main Page
+ * @return string
+ */
+function catalogo_colectivo_page(){
+    return  cons_ccbp_all();
+}
+
+
+
+
+

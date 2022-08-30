@@ -1,0 +1,5 @@
+name = YouMax
+description = Youmax script integration
+core = 7.x
+package = Media
+configure = admin/config/youmax

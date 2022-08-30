@@ -1,0 +1,4 @@
+name = CNBP
+description = Modulo soporte para funciones genericas del portal conabip.
+core = 7.x
+package = CNBP

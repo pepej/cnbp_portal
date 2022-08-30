@@ -1,0 +1,5 @@
+name = CONABIP Recat Functions
+description =  Funciones especiales para el trámite de recategorización
+core = 7.x
+package = "Conabip"
+version = 7.02

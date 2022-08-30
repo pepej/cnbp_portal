@@ -1,0 +1,8 @@
+name = Catalogo Colectivo
+description = Intgración con el KOHA para el catálogo colectivo de bibliotecas populares.
+core = 7.x
+version = 0.2
+package = CNBP
+dependencies[]= hierarchical_select
+dependencies[]= hs_taxonomy
+files[] = catalogo_colectivo.inc

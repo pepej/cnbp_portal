@@ -1,0 +1,4 @@
+name = Noticias
+description = Modulo para la visualización de noticias conabip.
+core = 7.x
+package = CNBP

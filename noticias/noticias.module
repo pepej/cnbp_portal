@@ -1,0 +1,971 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: diego
+ * Date: 19/12/14
+ * Time: 23:27
+ */
+
+
+function noticias_init(){
+    global $user;
+    if (!in_array('Usuario Validador Datos BP', $user->roles)) {
+
+
+        drupal_add_css(
+              '.page-user-edit .form-item-field-n-mero-de-registro-und-0-value, .page-user-edit .form-item-field-nombre-de-la-biblioteca-und-0-value,.page-user-edit #edit-contact, .page-user-edit li.horizontal-tab-button.horizontal-tab-button-1, .page-user-edit li.horizontal-tab-button.horizontal-tab-button-2x,#edit-account .form-item-mail, #edit-locale, #edit-overlay-control, #edit-timezone, #edit-account .form-item-name, #edit-account .form-item-current-pass , .page-user-edit li.horizontal-tab-button.horizontal-tab-button-3 {display:none;}',
+              array(
+                'group' => CSS_THEME,
+                'type' => 'inline',
+                'media' => 'screen',
+                'preprocess' => FALSE,
+                'weight' => '9999',
+              )
+            );
+    }
+
+}
+
+function noticias_menu(){
+
+    
+    $items['conabip/noticias'] = array(
+        'title' => t('Noticias'),
+        'page callback' => 'noticias_page',
+        'access arguments' => array('access content'),
+        'type' => MENU_SUGGESTED_ITEM,
+    );
+
+
+    $items['conabip/importar/usuarios'] = array(
+        'title' => t('Usuarios'),
+        'page callback' => 'importar_iconos', //importar_iconos o usuarios_page
+        'access arguments' => array('access content'),
+        'type' => MENU_SUGGESTED_ITEM,
+    );
+
+  $items['conabip/borrar'] = array(
+         'title' => t('Usuarios'),
+         'page callback' => 'borrar_usuarios', //importar_iconos o usuarios_page
+         'access arguments' => array('access content'),
+         'type' => MENU_SUGGESTED_ITEM,
+     );
+
+    $items['conabip/contenidos'] = array(
+        'title' => t('Multimedia'),
+        'page callback' => 'contenidos_page',
+        'access arguments' => array('access content'),
+        'type' => MENU_SUGGESTED_ITEM,
+    );
+
+    $items['conabip/noticias/detalle/%'] = array(
+        'title' => t('Noticias'),
+        'page callback' => 'noticias_detalle_d6__page',
+        'page arguments' => array(3),
+        'access arguments' => array('access content'),
+        'type' => MENU_SUGGESTED_ITEM,
+    );
+    $items['conabip/contenidos/detalle/%'] = array(
+        'title' => t('Noticias'),
+        'page callback' => 'contenidos_detalle_d6__page',
+        'page arguments' => array(3),
+        'access arguments' => array('access content'),
+        'type' => MENU_SUGGESTED_ITEM,
+    );
+
+
+    $items['conabip/importar/experiencias'] = array(
+        'title' => t('Importar Experiencias'),
+        'page callback' => 'importar_experiencias',
+        'access arguments' => array('access content'),
+        'type' => MENU_SUGGESTED_ITEM,
+    );
+
+    $items['conabip/importar/novedades'] = array(
+        'title' => t('Importar Novedades'),
+        'page callback' => 'importar_novedades',
+        'access arguments' => array('access content'),
+        'type' => MENU_SUGGESTED_ITEM,
+    );
+
+    $items['conabip/importar/noticias'] = array(
+        'title' => t('Importar Novedades'),
+        'page callback' => 'importarNoticias',
+        'access arguments' => array('access content'),
+        'type' => MENU_SUGGESTED_ITEM,
+    );
+
+
+    return $items;
+
+
+    }
+
+
+
+function noticias_page(){
+    
+
+    //Noticias del nuevo Drupal
+
+
+
+    $result=db_query('SELECT n.nid FROM {node}  n, field_data_field_tipo_de_noticia f WHERE n.type=:type AND n.nid=f.revision_id AND f.field_tipo_de_noticia_value=:tipoNoticia AND n.status=1 ORDER BY n.nid DESC',array(':type'=>'article',':tipoNoticia'=>'Noticia o artículo'));
+    $i=0;
+    foreach($result as $noticia){
+            //print $noticia->nid;               
+
+            $i++;
+            $nodeNoticia=node_load($noticia->nid);
+            if($i==1){
+                   
+            //$noticias.=drupal_render(node_view($nodeNoticia, true));
+            //print_r(file_create_url($nodeNoticia->field_image['und'][0]['uri']));
+            $noticias.=' <div class="col-sm-12 col-md-8 teaserNoticias d7 nroNoticia'.$i.'">
+    <div class="thumbnail">
+      <img src="'.file_create_url($nodeNoticia->field_image['und'][0]['uri']).'" alt="...">
+      <div class="caption">
+        <h3>'.$nodeNoticia->title.'</h3>
+        <p>'.$nodeNoticia->field_resumen['und'][0]['value'].'</p>
+        <p><a href="' . url('node/' . $nodeNoticia->nid) . '" class="btn btn-primary" role="button">Ver más</a></p>
+      </div>
+    </div>
+  </div>';
+            }
+            else {
+            $noticias.=' <div class="col-sm-6 col-md-4 teaserNoticias d7 chico nroNoticia' . $i . '">
+    <div class="thumbnail">
+      <img src="'.file_create_url($nodeNoticia->field_image['und'][0]['uri']).'" alt="...">
+      <div class="caption">
+      
+        <h3>'.$nodeNoticia->title.'</h3>
+        <p>'.$nodeNoticia->field_resumen['und'][0]['value'].'</p>
+        <p><a href="'.url('node/'.$nodeNoticia->nid).'" class="btn btn-primary" role="button">Ver más</a></p>
+      </div>
+    </div>
+  </div>';
+            }
+            
+    }
+
+
+    //Noticias del viejo Drupal
+
+    $d6db = Database::getConnection('d6','default');
+    $result = $d6db->query('SELECT n.nid, n.title, r.teaser, r.body, c.field_cintillo_value AS cintillo FROM node n, node_revisions r , content_field_cintillo c WHERE  c.nid=n.nid  AND r.nid=n.nid AND c.nid = r.nid AND n.type=:type AND n.status =1 ORDER BY nid DESC',array(':type'=>'noticias'));
+    foreach($result as $item){
+       //print_r($item);
+        $i++;
+    //echo truncate_utf8(strip_tags($item->teaser),50, true,true).'<hr>';
+        //echo truncate_utf8(strip_tags($item->teaser), 100, true, true);
+       $noticiasd6.=' <div class="col-sm-6 col-md-4 teaserNoticias d6">
+    <div class="thumbnail">
+      
+      <div class="caption">
+        <h3>' .truncate_utf8($item->title, 90, true, true).'</h3>
+
+        <p><a href="'.base_path().'conabip/noticias/detalle/'.$item->nid.'" class="btn btn-primary" role="button">Ver más</a></p>
+      </div>
+    </div>
+  </div>';
+        
+    }
+
+
+
+    return '<div class="row">'.$noticias.$noticiasd6.'</div>';
+  
+}
+
+
+function contenidos_page()
+{
+
+
+    //Noticias del nuevo Drupal
+
+
+    $result = db_query('SELECT n.nid FROM {node}  n, field_data_field_tipo_de_noticia f WHERE n.type=:type AND n.nid=f.revision_id AND f.field_tipo_de_noticia_value=:tipoNoticia AND n.status=1 ORDER BY n.nid DESC', array(':type' => 'article', ':tipoNoticia' => 'Promoción contenido multimedia'));
+    $i = 0;
+    foreach ($result as $noticia) {
+        //print $noticia->nid;
+
+        $i++;
+        $nodeNoticia = node_load($noticia->nid);
+        if ($i == 1) {
+
+            //$noticias.=drupal_render(node_view($nodeNoticia, true));
+            //print_r(file_create_url($nodeNoticia->field_image['und'][0]['uri']));
+            $noticias .= ' <div class="col-sm-12 col-md-8 teaserNoticias d7 nroNoticia' . $i . '">
+    <div class="thumbnail">
+      <img src="' . file_create_url($nodeNoticia->field_image['und'][0]['uri']) . '" alt="...">
+      <div class="caption">
+        <h3>' . $nodeNoticia->title . '</h3>
+        <p>' . $nodeNoticia->field_resumen['und'][0]['value'] . '</p>
+        <p><a href="' . url('node/' . $nodeNoticia->nid) . '" class="btn btn-primary" role="button">Ver más</a></p>
+      </div>
+    </div>
+  </div>';
+        } else {
+            $noticias .= ' <div class="col-sm-6 col-md-4 teaserNoticias d7 chico nroNoticia' . $i . '">
+    <div class="thumbnail">
+      <img src="' . file_create_url($nodeNoticia->field_image['und'][0]['uri']) . '" alt="...">
+      <div class="caption">
+
+        <h3>' . $nodeNoticia->title . '</h3>
+        <p>' . $nodeNoticia->field_resumen['und'][0]['value'] . '</p>
+        <p><a href="' . url('node/' . $nodeNoticia->nid) . '" class="btn btn-primary" role="button">Ver más</a></p>
+      </div>
+    </div>
+  </div>';
+        }
+
+    }
+
+
+    //Noticias del viejo Drupal
+/*
+    $d6db = Database::getConnection('d6', 'default');
+    $result = $d6db->query('SELECT n.nid, n.title, r.teaser, r.body, c.field_cintillo_value AS cintillo FROM node n, node_revisions r , content_field_cintillo c WHERE  c.nid=n.nid  AND r.nid=n.nid AND c.nid = r.nid AND n.type=:type AND n.status =1 ORDER BY nid DESC', array(':type' => 'noticias'));
+    foreach ($result as $item) {
+        //print_r($item);
+        $i++;
+        //echo truncate_utf8(strip_tags($item->teaser),50, true,true).'<hr>';
+        //echo truncate_utf8(strip_tags($item->teaser), 100, true, true);
+        $noticiasd6 .= ' <div class="col-sm-6 col-md-4 teaserNoticias d6">
+    <div class="thumbnail">
+
+      <div class="caption">
+        <h3>' . truncate_utf8($item->title, 90, true, true) . '</h3>
+
+        <p><a href="' . base_path() . 'conabip/noticias/detalle/' . $item->nid . '" class="btn btn-primary" role="button">Ver más</a></p>
+      </div>
+    </div>
+  </div>';
+
+    }
+*/
+
+    return '<div class="row">' . $noticias . $noticiasd6 . '</div>';
+
+}
+
+
+function noticias_detalle_d6__page($nid){
+
+
+
+    $d6db = Database::getConnection('d6', 'default');
+    $result = $d6db->query('SELECT n.nid, n.title, n.created, r.body, c.field_cintillo_value AS cintillo FROM node n, node_revisions r , content_field_cintillo c WHERE  c.nid=n.nid  AND r.nid=n.nid AND c.nid = r.nid AND n.nid = :nid AND n.type=:type AND n.status =1 ORDER BY nid DESC', array(':type' => 'noticias', ':nid'=>arg(3)));
+
+    foreach ($result as $item) {
+        drupal_set_title($item->title);
+
+       /* $nodo = new stdClass();
+        $nodo->type = "article";
+        node_object_prepare($nodo);
+        $nodo->title = $item->title;
+        $nodo->language = LANGUAGE_NONE;
+        $nodo->uid =1;
+        $nodo->created = $item->created;
+        $nodo->body[$nodo->language][0]['value'] = $item->body;
+        $nodo->body[$nodo->language][0]['summary'] = $item->body;
+        $nodo->body[$nodo->language][0]['format'] = 'filtered_html';
+
+        $pos = strpos($item->body, '.', 600);
+        $nodo->field_resumen[$nodo->language][0]['value'] = substr($item->body,0,$pos).'…';
+        $nodo->field_resumen[$nodo->language][0]['summary'] = substr($item->body, 0, $pos) . '…';
+        $nodo->field_resumen[$nodo->language][0]['safe_value'] = strip_tags(substr($item->body, 0, $pos) . '…');
+
+        $nodo->field_tipo_de_noticia[$nodo->language][0]['value']='Noticia o artículo';
+
+        if ($nodo = node_submit($nodo)) { // Prepare node for saving
+            node_save($nodo);
+            echo "Node with nid " . $nodo->nid . " saved!\n";
+        }*/
+
+
+    }
+    return strip_tags($item->body, '<p><b><strong>');
+}
+
+
+function contenidos_detalle_d6__page($nid){
+
+
+    $d6db = Database::getConnection('d6', 'default');
+    $result = $d6db->query('SELECT n.nid, n.title, n.created, r.body, c.field_cintillo_value AS cintillo FROM node n, node_revisions r , content_field_cintillo c WHERE  c.nid=n.nid  AND r.nid=n.nid AND c.nid = r.nid AND n.nid = :nid AND n.type=:type AND n.status =1 ORDER BY nid DESC', array(':type' => 'noticias', ':nid' => arg(3)));
+
+    foreach ($result as $item) {
+        drupal_set_title($item->title);
+
+        /* $nodo = new stdClass();
+         $nodo->type = "article";
+         node_object_prepare($nodo);
+         $nodo->title = $item->title;
+         $nodo->language = LANGUAGE_NONE;
+         $nodo->uid =1;
+         $nodo->created = $item->created;
+         $nodo->body[$nodo->language][0]['value'] = $item->body;
+         $nodo->body[$nodo->language][0]['summary'] = $item->body;
+         $nodo->body[$nodo->language][0]['format'] = 'filtered_html';
+
+         $pos = strpos($item->body, '.', 600);
+         $nodo->field_resumen[$nodo->language][0]['value'] = substr($item->body,0,$pos).'…';
+         $nodo->field_resumen[$nodo->language][0]['summary'] = substr($item->body, 0, $pos) . '…';
+         $nodo->field_resumen[$nodo->language][0]['safe_value'] = strip_tags(substr($item->body, 0, $pos) . '…');
+
+         $nodo->field_tipo_de_noticia[$nodo->language][0]['value']='Noticia o artículo';
+
+         if ($nodo = node_submit($nodo)) { // Prepare node for saving
+             node_save($nodo);
+             echo "Node with nid " . $nodo->nid . " saved!\n";
+         }*/
+
+
+    }
+    return strip_tags($item->body, '<p><b><strong>');
+}
+
+
+function usuarios_page() {
+
+    $d6db = Database::getConnection('d6', 'default');
+
+
+    $result = $d6db->query('SELECT u.uid, u.name, u.pass, u.mail  FROM users u, users_roles r WHERE r.uid=u.uid AND r.rid=:rid  AND u.uid NOT IN (:notuid) AND u.name NOT IN (:nonames)',array(':rid'=>18, ':notuid'=>array(42,7,3045), ':nonames'=>array("BP0392","BP0509","BP0811","BP0827","BP0829","BP1242","BP1312","BP1510","BP1646","BP1994","BP2254","BP2256","BP2561","BP2644","BP2875","BP2906","BP3003","BP3063","BP3108","BP3133","BP3299","BP3337","BP3637","BP3737","BP3980","BP1647","BP1083","BP1945","BP4124","BP2472","BP3725","BP 3652","BP4041","4120","bp4175","BP0991","BP3068","BP3749","BP3453","BP3901","BP1758","BP1872","BP0420","BP3528","BP4206","bp3392","BP0476","BP4145","BP4042","BP3383","BP3958","BP3177","BP4095","BP3830","BP793","BP4113","BP3007","BP3696","BP1454","BP0479","BP3674","bp4022","BP2371","BP3589","bp miguel lillo","BP3591","BP1344","BP2498","BP1232","BP0202","BP0790","BP3182","BP2811","BP0233","BP0430","BP3326","BP3387","BP1062","BP4040","BP2737","BP3629","BP4121","BP4024","BP3877","BP2082","BP0175","BP1326","BP3030","BP3497","BP2831","BP3968","BP3433","BP1684","BP3517","BP3595","BP0488","BP2927","BP2373","BP1541","BP3284","BP0819","BP1024","BP0957","Biblioteca Popular Mariano Moreno-","BP2501","BP3903","BP1838","BP3153","BP0426","BP3231","BP3527","BP4114","BP3009","BP1766","BP2608","BP0384","BP3898","BP3873","BP2178","BP3432","BP3516","BP3447","BP3163","BP3311","BP3790","BP3756","BP0455","BP1399","bpvs","BP0501","BP2679","BP1375","bp2887","BP2945","BP2595","BP1299","BP0567","BP2115","BP4020","BP3137","BP3507","BP0122","BP1864","BP2252","BP3934","BP2876","bp4082","BP3999","BP3964","BP4176","BP1119","BP4149","bp2188","BP2603","BP0173","BP0279","BP2148","BP0916","BP2457","BP3715","BP2428","BP4154","BP0077","BP3365","BP2242","BP3078","BP2870","BP 0341","BP1116","BP3450","BP3047","bp3343","BP1078","bp1789","bp0716","BP1885","BP 3889","BP3437","bp2942","BP3222","BP4228","BP3998","BP3546","BP3309","BP3005","BP3042","BP2691","BP4191","BP1041","BP1028","BP2863","BP3051","BP3292","BP2649","BP0487","BP2913","BP0424","BP2688","BP3267","bp1973","BP2170","BP0753","BP 0473","BP3214","BP2243","BP0221","BP3029","BP4215","BP3752","BP3473","bp4170","BP3037","BP3867","BP3456","bp2639","BP1248","CACHILO","BP1600","bp2907","BP4008","BP3520","BP2841","BP2786","BP2554","BP1366","BP3216","BP2316","BP0416","BP3716","biblioteca.1695","BP2366","BP3617","BP2862","BP3115","BP3242","BP3559","bp0603","bp0115","BP3534","BP3477","BP2735","BP0223","BP1465","BP3916","BP3145","BP3353","BP4222","maria rosa barrios","BP2021","bp3239","BP4023","BP4010","BP4054","BP0411","BP1276","BP3593","BP2191","BP0019","BP4198","bp3103","BP3707","BP0460","BP2127","BP3148","BP0544","BP1179","BP3131","BP0495","BP3730","BP0417","BP3833","BP3986","bp2534","BP3941","3600","BP0644","bp4197","BP3310","BP2330","BP3522","BP 3106","BP3795","BP2916","bp3174","bp1021","BP3693","BP4080","BP0258","BP3978","BP4015","bp0898","bp2615","BP0832","BP3319","BP4060","BP0078","BP3460","BP1464","BP4098","BP0101","BP2968","BP3922","BP2950","BP2825","BP1970","LILIANA ELENA VERANO","BP0860","BP3743","BP 3997","BP3164","BP2040","BP3596","BP1019","BP1724","BP0270","BP2574","BP4070","BP1347","BP3318","BP3251","BP2729","BP2005","BP 1419","BP3801","BP3531","BP3271","BP0354","BP2225","BP3023","BP3257","BP2997","BP3954","BP0419","BP0483","BP3905","BP2264","BP3894","BP3764","BP3827","BP0259","BP2387","BP2951","BP3724","BP3169","bp2323","BP3892","bp1152","BP0413","BP3212","BP0210","bp3325","BP2123","BP3729","BP2418","BP4037","BP3754","BP0252","BP1071","BP3155","BP3418","BP3971","BP3261","BP4150","BP2974","BP3011","BP2686","BP0306","BP3190","BP0826","BP3342","BP1827","BP2209","BP3254","BP0506","BP2014","BP0126","BP0816","BP3349","BP1615","BP2424","BP0470","BP4152","BP4178","BP3041","BP0050","BP1499","bp3351","BP1915","BP3719","BP1280","BP0861","BP0586","BP1193","BP3506","3911_miguel_angel_sosa","BP4110","BP4231","BP3100","BP1201","BP3127","BP 0427","BP3345","BP1582","BP3330","BP0463","BP3733","BP2794","BP 2233","bp1175","BP3990","BP2297","BP3657","BP2647","BP2830","BP3576","BP4088","BP0217","Quintana Corrientes","BP3552","BP1733","BP2620","BP0125","BP2676","BP3645","BP3206","BP3215","BP4021","BP0414","BP0823","BP4077","bp0766","BP3377","BP3441","BP3734","BP4127","BP4001","BP4313","BP4033","BP3976","BP2257","BP3483","BP3332","BP3409","BP0342","BP3386","BP0491","BP4180","BP1391","BP0032","BP1472","BP3727","BP3620","BP2655","BP2296","BP1554","BP1620","BP2926","BP3911","BP3049","BP3651","BP3762","BP4043","BP2177","BP3821","BP4047","BP0195","BP3083","BP1756","BP2931","BP3181","BP4093","BP2171","BP0588","BP2776","BP3732","2631","BP0982","BP3770","BP3979","BP3649","bp.sarmiento.suardi","BP4177","BP1145","bp1749","BP3880","BP0985","123","bp3188","BP3401","BP1850","BP3031","BP2008","BP1035","BP3627","BP4116","BP0100","biblioteca_andrada","BP2237","BP3004","BP4143","BP3474","BP3368","BP3094","BP3235","BP4174","BP4066","BP2197","BP0442","BP3223","BP2954","BP0440","BP4239","BP0083","bp3802","BP3213","BP1673","BP3717","bp2317","BP0018","BP2944","BP0700","BP3375","biblioteca popular Rivadavia","BP3393","BP3102","BP1191","BP4029","BP0177","BP0742","biblioteca popular enrique lynch arribalzaga","BP3285","BP1662","BP4097","BP3823","BP3344","BP0966","BP3279","BP3798","BP3828","BPDFS","BP3549","BP0528","BP 3535","BP3616","BP1345","BP1204","BP3183","BP3057","bp0512","bp4212","bp3015","BP3406","BP4057","BP3692","BP0294","BP3983","BP3496","BP3203","BP 0215","BP1278","BP4140","BP2922","BP3644","BP0105","BP1998","bp3931","BP1654","BP0873","BP0780","BP3969","BP2883","BP2208","BP0945","BP0287","BP2189","BP4134","BP4105","BP4181","BP3622","BP3868","BP1977","BP3582","BP1170","BP2585","BP0527","BP3706","BP3255","BP2321","BP3773","BP3936","BP1081","bp3923","BP0093","BP2768","BP2090","BP3650","bp3585","BP3446","3060","BP0240","BP3306","BP2271","BP4187","BP0249","bpaa1819","BP3492","BP0815","BP3082","BP0090","BP2723","0808_bib_estrada","BP2760","BP3105","BP 0704","BP3416","BP1990","BP4159","BP0461","bp0808","BP3001","BP3185","BP2185","BP3359","BP4223","BP4011","BP3984","BP3632","BP4220","BP0168","BP3347","BP1952","BP0707","BP3899","BP1576","BP3033","BP3504","BP4221","BP3565","BP2662","BP3982","BP4193","BP1556","BP1408","BP3128","BP4205","BP2807","BP3084","bp0897","BP1194","BP3785","BP0973","BP2331","BP3948","BP3459","BP3250","BP0883","BP4104","BP3356","BP4157","BP4226","BP4062","BP1180","BP0494","BP3157","BP1706","BP0231","BP3711","BP3233","BP3277","BP0549","BP3426","BP0324","BP4196","BP3438","BP0131","BP3298","BP4002","BP3902","BP0805","BP3722","BP3972","BP2152","BP3173","BP0779","gregorio alvarez","BP3603","BP2339","BP3065","BP4202","BP0787","BP3925","BP3566","BP3812","BP4109","BP4017","BP3906","BP1555","BP1769","BP1770","BP4044","BP3053","bp1478","BP1426","BP2992","BP3304","bp3735","BP3125","BP2324","BP3465","BP3763","BP1093","BP3187","BP2265","BP4216","bp4219","BP3080","BP2108","BP3845","BP0803","BP2114","BP3659","BP3211","BP3994","BP3202","biblioteca julio migno de ibarlucea","BP2004","BP0783","BP2880","BP2551","BP3951","BP3939","BP0692","BP3355","BP0462","BP1007","BP3816","BP2453","BP2277","bp0859","BP0467","BP4083","BP3935","BP3395","BP0150","BP0197","BP0222","BP0387","BP0401","BP0422","BP0469","BP0475","BP0518","BP0522","BP0523","BP0539","BP0547","BP0763","BP0774","BP0802","BP0886","BP0992","BP1014","BP1053","BP1198","BP1207","BP1395","BP1477","BP1599","BP1665","BP1743","BP1824","BP1867","BP1874","BP1936","BP1993","BP1997","BP2006","BP2048","BP2068","BP2069","BP2134","BP2138","BP2157","BP2159","BP2198","BP2266","BP2318","BP2356","BP2401","BP2406","BP2414","BP2490","BP2556","BP2642","BP2646","BP2672","BP2763","BP2767","BP2815","BP2872","BP2855","BP2905","BP2914","BP2967","BP2995","BP3028","BP3071","BP3091","BP3092","BP3097","BP3107","BP3123","BP3129","BP3138","BP3146","BP3171","BP3180","BP3186","BP3194","BP3207","BP3221","BP3252","BP3274","BP3275","BP3276","BP3281","BP3296","BP3314","BP3317","BP3336","BP3374","BP3430","BP3431","BP3434","BP3439","BP3443","BP3444","BP3457","3472","BP3482","BP3487","BP3513","BP3521","BP3543","BP3544","BP3553","BP3558","BP3568","BP3571","BP3580","BP3586","BP3587","BP3594","BP3633","BP3708","BP3718","BP3723","BP3755","BP3757","BP3796","BP3835","BP3840","BP3842","BP3917","BP3928","BP3929","BP3966","BP3967","BP4030","BP4055","BP4076","BP4078","BP4079","BP4101","BP4108","BP4118","BP4137","BP4146","BP4148","BP4155","BP4165","BP4167","BP4169","BP4172","BP4173","BP4195","BP4210","BP4236","BP4163","gconde","BP1176","BP3077","BP4189","BP3955","BP4068","BP2994","BP0087","BP0139","BP4235","BP1509","BP0772","BP3532","BP0651","BP4241","BP3408","BP3421","BP3910","BP2207","BP0427","BP0194","BP3574","BP3631","BP3464","BP0621","BP4207","BP3689","BP3490","BP3199","BP0987","BP3952","BP3193","BP4119","BP2970","BP3561","BP4240","BP0236","BP4200","BP1627","BP3919","BP2203","BP2803","BP3486","BP2814","BP0806","BP3151","BP4051","BP1144","BP3397","BP4204","BP0303","BP3829","BP4035","BP2022","BP3329","BP3468","BP2692","BP2978","BP3853","BP3122","BP1522","BP4129","BP0925","BP4186","BP2558","BP0113","BP3550","BP3563","BP3614","BP3370","BP3841","BP4086","BP1361","BP4069","BP3677","BP2137","BP3134","BP2867","BP3404","BP0901","BP2843","BP3243","BP0165","BP3926","BP2673","BP0385","BP4132","BP1303","BP3813","BP3642","BP0340","BP2543","BP2923","BP2084","BP3608","BP3890","BP3891","BP2546","BP1809","BP0709","BP3321","BP4111","BP2840","BP2136","BP1257","BP4115","BP_ber_rivadavia","BP0334","BP3736","BP3462","BP0244","BP4005","BP0634","BP3957","BP4151","BP2355","BP1266","BP0560","BP4217","BP3817","BP3248","BP3263","BP1883","BP3592","BP4158","BP4245","BP4243","BP4027","BP4014","BP3838","BP3219","BP2928","BP1799","BP0935","BP0830","BP4309","bp4315","bp4323","BP1659")));
+
+
+    foreach ($result as $item) {
+        //print_r($item);
+        //$item = new stdClass();
+        $i++;
+
+
+
+        //Buscando Nombre de BP y Nro  de Reg
+        $result2 = $d6db->query('SELECT p.fid, p.value  FROM profile_values p WHERE p.uid=:uid', array(':uid' => $item->uid));
+        foreach ($result2 as $value) {
+
+            print_r($value);
+            if ($value->fid == 1) {
+              $item->nroReg = ereg_replace("[^0-9]", "", $value->value);
+            }
+            if ($value->fid == 2) {
+
+                $item->nombreBP = $value->value;
+
+            }
+        }
+
+        //Ampliando data con nodos typo BP
+
+
+
+        $titleNodoBp = $item->nroReg;
+        if (strlen($titleNodoBp) == 3) {
+            $titleNodoBp = '0' . $titleNodoBp;
+        }
+        if (strlen($titleNodoBp) == 2) {
+            $titleNodoBp = '00' . $titleNodoBp;
+        }
+        if (strlen($titleNodoBp) == 1) {
+            $titleNodoBp = '000' . $titleNodoBp;
+        }
+
+        $item->formatedNroBP = $titleNodoBp;
+
+        $result3 = $d6db->query('SELECT b.* FROM node n , content_type_biblioteca_popular b WHERE b.nid=n.nid AND n.type=:type AND n.title=:title', array(':type' => 'biblioteca_popular', ':title' => $titleNodoBp));
+        foreach ($result3 as $value) {
+            $item->dataBP = $value;
+        }
+
+        //Coordenadas
+        $result4 = $d6db->query('SELECT latitude, longitude FROM location WHERE lid=:lid', array(':lid' => $item->dataBP->field_coordenada_lid));
+        foreach ($result4 as $value) {
+            $item->coordenadas = $value;
+        }
+
+        //Provincia y Ciudad
+
+        $queryProv = $d6db->query('SELECT t.name AS provincia FROM term_data  t, term_hierarchy h , term_node n WHERE n.tid=t.tid AND n.tid=h.tid AND  t.vid = :vid AND t.tid=h.tid AND h.parent=:parent AND n.nid= :nid', array(':vid' => 5, ':parent' => 0, ':nid' => $item->dataBP->nid));
+
+        $queryCiudad = $d6db->query('SELECT t.name AS ciudad FROM term_data  t, term_hierarchy h , term_node n WHERE n.tid=t.tid AND n.tid=h.tid AND  t.vid = :vid AND t.tid=h.tid AND h.parent!=:parent AND n.nid= :nid', array(':vid' => 5, ':parent' => 0, ':nid' => $item->dataBP->nid));
+
+        foreach ($queryProv as $prov) {
+            $item->provincia = $prov;
+        }
+        foreach ($queryCiudad as $ciudad) {
+            $item->ciudad = $ciudad;
+        }
+
+
+        //Saving Data
+
+        $account = new stdClass;
+        $account->is_new = TRUE;
+        $account->name = $item->name;
+        $account->pass = $item->pass;
+        $account->mail = $item->mail;
+        $account->init = $item->mail;
+        $account->status = TRUE;
+        $account->roles = array(DRUPAL_AUTHENTICATED_RID => TRUE, 4 => TRUE);
+        $account->timezone = variable_get('date_default_timezone', '');
+
+        $account->field_nombre_de_la_biblioteca['und'][0]['value'] = $item->nombreBP;
+        $account->field_nombre_de_la_biblioteca['und'][0]['safe_value'] = $item->nombreBP;
+
+        $account->field_e_mail_de_la_biblioteca['und'][0]['email'] = $item->mail;
+
+        $account->field_n_mero_de_registro['und'][0]['value'] = $item->nroReg;
+
+
+        $location = array(
+            'street' => $item->dataBP->field_dir_calle_value . ' ' . $item->dataBP->field_dir_num_value,
+            'city' => $item->ciudad->ciudad,
+            'province' => $item->provincia->provincia,
+            'province_name' => $item->provincia->provincia,
+            'postal_code' => $item->dataBP->field_cod_postal_value,
+            'country' => 'ar',
+            'country_name' => "Argentina",
+            'source' => 3,
+            'latitude' => $item->coordenadas->latitude,
+            'longitude' => $item->coordenadas->longitude,
+        );
+        if ($_GET['crear'] == 11444){ $account->field_direcci_n['und'][0]['lid'] = location_save($location);}
+        $account->field_direcci_n['und'][0]['street'] = $item->dataBP->field_dir_calle_value . ' ' . $item->dataBP->field_dir_num_value;
+        $account->field_direcci_n['und'][0]['city'] = $item->ciudad->ciudad;
+        $account->field_direcci_n['und'][0]['province'] = $item->provincia->provincia;
+        $account->field_direcci_n['und'][0]['province_name'] = $item->provincia->provincia;
+        $account->field_direcci_n['und'][0]['postal_code'] = $item->dataBP->field_cod_postal_value;
+        $account->field_direcci_n['und'][0]['country'] = "ar";
+        $account->field_direcci_n['und'][0]['country_name'] = "Argentina";
+        $account->field_direcci_n['und'][0]['latitude'] = $item->coordenadas->latitude;
+        $account->field_direcci_n['und'][0]['longitude'] = $item->coordenadas->longitude;
+
+
+        $account->field_tel_fonos['und'][0]['value'] = $item->dataBP->field_codigo_area_1_value . ' ' . $item->dataBP->field_tel_ppal_value;
+        $account->field_tel_fonos['und'][0]['safe_value'] = $item->dataBP->field_codigo_area_1_value . ' ' . $item->dataBP->field_tel_ppal_value;
+
+        if($_GET['espiar']){
+            print '<pre>';
+            print_r($account);
+            print '</pre>';
+        }
+
+
+
+        //create user in Drupal 7 site
+            if($_GET['crear']==11444 && !empty($item->nombreBP)){
+                try{
+                   // user_save($account);
+
+                    echo "<p>OK User acount " . $account->name . " has been created</p>";
+                    $status = 'OK';
+                }
+                catch(Exception $e) {
+                    echo 'NOOK Caught exception: ', $e->getMessage(), "\n";
+                    $status = 'NONOK';
+                }
+                finally {
+                    echo "STATUS:".$status."<hr>";
+                }
+
+            }
+
+
+
+           if($_GET['delete']){
+               $result = db_query ('SELECT * FROM users WHERE uid >1');
+               foreach ($result as $usuario){
+                   user_delete($usuario->uid);
+               }
+           }
+
+
+
+
+    }
+
+
+    return '<div class="row">' .  $noticiasd6 . '</div>';
+
+}
+
+
+function importar_usuarios_no_usuarios()
+{
+
+
+    $d6db = Database::getConnection('d6', 'default');
+
+
+    $result = $d6db->query('SELECT * FROM users2');
+    foreach ($result as $item) {
+
+        //$item = new stdClass();
+
+        $i++;
+
+
+
+        //Saving Data
+
+        $account = new stdClass;
+        $account->is_new = TRUE;
+        $account->name = 'BP_'.$item->reg;
+        $account->pass = '1234';
+        $account->mail = $item->mail;
+        $account->init = $item->mail;
+        $account->status = TRUE;
+        $account->roles = array(DRUPAL_AUTHENTICATED_RID => TRUE, 4 => TRUE);
+        $account->timezone = variable_get('date_default_timezone', '');
+
+        $account->field_nombre_de_la_biblioteca['und'][0]['value'] = $item->field_nombre_bp_value;
+        $account->field_nombre_de_la_biblioteca['und'][0]['safe_value'] = $item->field_nombre_bp_value;
+
+        $account->field_e_mail_de_la_biblioteca['und'][0]['email'] = $item->mail;
+
+        $account->field_n_mero_de_registro['und'][0]['value'] = $item->reg;
+
+
+        $location = array(
+            'street' => $item->field_dir_calle_value . ' ' . $item->field_dir_num_value,
+            'city' => $item->field_localidad_value,
+            'province' => $item->provincia,
+            'province_name' => $item->provincia,
+            'postal_code' => $item->field_cod_postal_value,
+            'country' => 'ar',
+            'country_name' => "Argentina",
+            'source' => 3,
+            'latitude' => $item->latitude,
+            'longitude' => $item->longitude,
+        );
+        if ($_GET['crear'] == 11444) {
+            $account->field_direcci_n['und'][0]['lid'] = location_save($location);
+        }
+        $account->field_direcci_n['und'][0]['street'] = $item->field_dir_calle_value . ' ' . $item->field_dir_num_value;
+        $account->field_direcci_n['und'][0]['city'] = $item->field_localidad_value;
+        $account->field_direcci_n['und'][0]['province'] = $item->provincia;
+        $account->field_direcci_n['und'][0]['province_name'] = $item->provincia;
+        $account->field_direcci_n['und'][0]['postal_code'] = $item->field_cod_postal_value;
+        $account->field_direcci_n['und'][0]['country'] = "ar";
+        $account->field_direcci_n['und'][0]['country_name'] = "Argentina";
+        $account->field_direcci_n['und'][0]['latitude'] = $item->latitude;
+        $account->field_direcci_n['und'][0]['longitude'] = $item->longitude;
+
+
+        $account->field_tel_fonos['und'][0]['value'] = $item->field_codigo_area_1_value . ' ' . $item->field_tel_ppal_value;
+        $account->field_tel_fonos['und'][0]['safe_value'] = $item->field_codigo_area_1_value . ' ' . $item->field_tel_ppal_value;
+
+        if ($_GET['espiar']) {
+            print '<pre>';
+            print_r($account);
+            print '</pre>';
+        }
+
+
+        //create user in Drupal 7 site
+        /*if($_GET['crear']==11444 && !empty($item->field_nombre_bp_value)){
+            try{
+                user_save($account);
+                echo "<p>User acount " . $account->name . " has been created</p>";
+                $status = 'OK';
+            }
+            catch(Exception $e) {
+                echo 'Caught exception: ', $e->getMessage(), "\n";
+                $status = 'NONOK';
+            }
+            finally {
+                echo "STATUS:".$status."<hr>";
+            }
+
+        }*/
+
+
+
+        }
+
+
+
+
+
+    return '';
+
+}
+
+
+
+function importar_iconos(){
+    /*global $user;
+    $user= user_load($user->uid);
+    $user->field_servicios=array();
+    $user->field_servicios['und'][0]=array('value'=>'DigiBePe');
+    print_r($user->field_servicios);
+    user_save($user);
+    */
+
+
+    //Get the table data
+    $d6db = Database::getConnection('d6', 'default');
+    $result = $d6db->query('SELECT * FROM servicios WHERE reg IN (1006,3390,3346,490,2861,2810,4046,3354,4025,3055,3869,4038,381,1260,3476,3119,4142,4052,4249,2275,3985,3658,1880,3262,3472,3238,2341,2259,2473,3885,3920,770,2631,2804,1131,608,4034,3613,1403,718,2128,370,226,3104,3600,3032,4000,3323,3808,3132,3943,4203,4136,4138,4188,2311,581,3313,3382,3610,3884,3820,1957,3607,2894,481,1412,355,201,3741,4237,3192,230,3000,123,2697,3668,4234,4036,4058,3824,3772,3767,4156,3769,3469,3761,3196,468,2135,3524,517,4230,3539,3618,3822,192,1256,1351,4126,876,1913,947,3942,4122,3548,3956,1483,3628,4065,268,3662,3572,3340,3295,1701,3697,1489,4252,2982,725,1530,1265,3519,3720,3959,3302,4153,3046,1342,665,3702,2751,3399,4248,3389,1246,3480,3290,2949,4032,3060,4162,3932,4251,3792,4120,3312,2122,3809,3907,319,1016,997,2789,771,3511,906,3745,3691,3758,3895,3874,3977,2597,4182,2939,3012,3388,2187,938,4171,3378,4144,3266,3535,652,967,913,3510,612,3837,3210,4256,111,4271,3361,4135,4028,545,2436,383,1002,2984,4255,3682,3126,4257,3794,3006,4247,2142,4166,4273,3904,3150,2158,2891,3944,382,3197,2419,213,3241,4141,676,2456,595,3293,4259,3142,1800,4050,3234,4266,752,4263,4270,1388,1251,4160,4233,914,3609,1988,4268,2798,3921,3116,3040,3217,232,1115,3909,3581,1808,3228,4250,98,1663,4049,3467,4260,4218,1807,4279,2747,2130,4125,3623,3768,2611,4277,4213,4123,3799,2958,2828,3282,4244,4059,3095,1497,3839,328,4254,3811,3258,2449,3751,3673,4264,3721,3458,3147,3930,2444,702,3270,3970,2601,3109,4276,2045,338,4267,3634,4275,4258,2772,3672,4297,4292,4164,1921,2866,4214,4282,4288,2851,4296,4280,2921,3781,1695,3335,543,4291,2182,4265,3099,3158,3536,4232,4073,4064,174,1222,3518,4261,2073,4289,714,4278,3308,3019,3339,4161,4225,2918,3218,3316,645,492,2941,4302,3220,3826,3912,4224,3791,4253,3121,2823,3402,4274,4294,4310,1775,870,4307,3422,1502,4311,4269,1680,214,4308,4306,1843,4301,2900,4304,2426,3995,3647,3010,4211,2790,1989,4312,4303,4300,3636,1920,2276,4285,4299,4246,740,1857,2868,4286,4318,3184,3017,724,3179,3556,3825,1729,4305,3291,1830,3489,4324,4063,3748,4319,749,3712,2858,1178,4326,1311,3013,4314,4102,4329,4316,1469,4298,3759,4327,3358,3324,3350,2690,1054,4331,3294,4295,2596,3728,4242,3014,4321,4330,4333,1975,4322,2998,3893,4336,4337
+    )');
+
+    //Walk around data for service assignation
+    foreach ($result as $item) {
+
+        //Get the matching user and assign the services
+        $query=db_select('field_data_field_n_mero_de_registro','f');
+        $query->condition('f.field_n_mero_de_registro_value', $item->reg, '=');
+        $query->fields('f',array('entity_id'));
+
+        if(@count($query->execute()->rowCount())>0){
+            $user = user_load(array('uid'=> $query->execute()->fetchField()));
+
+            print_r($user);
+          print '<hr>';
+
+            //Checking for services to assing
+            $user->field_servicios = array();
+            $servicios=array();
+            if($item->tiene_digibepe==1){$servicios[]='DigiBePe';}
+            if($item->inernet==1){$servicios[]='Internet';}
+            if($item->wifi==1){$servicios[]='Wifi';}
+            if($item->bebeteca==1){$servicios[]='Bebeteca';}
+            if($item->lecturainf==1){$servicios[]='Rincón Infantil';}
+            if($item->moviles==1){$servicios[]='Servicios Móviles';}
+            if($item->capacidadDif==1){$servicios[]='Servicios para personas con discapacidad';}
+            if($item->novidente==1){$servicios[]='Equipamiento para no videntes';}
+            if($item->terceraedad==1){$servicios[]='Servicios para la tercera edad';}
+            if($item->talleres==1){$servicios[]='Talleres y Cursos|Talleres y Cursos';}
+            if($item->concursos==1){$servicios[]='Concursos Literarios y Culturales';}
+            if($item->expos==1){$servicios[]='Exposiciones';}
+            if($item->filiales==1){$servicios[]='Fliliales de la Biblioteca';}
+            if($item->cine==1){$servicios[]='Cine';}
+            if($item->fotocopia==1){$servicios[]='Fotocopiado';}
+            if($item->sum==1){$servicios[]='Salón de usos múltiples';}
+            if($item->publicaciones==1){$servicios[]='Publicaciones';}
+            if($item->radio==1){$servicios[]='Radio y TV';}
+            if($item->hemeroteca==1){$servicios[]='Hemeroteca';}
+            if($item->videoteca==1){$servicios[]='Videoteca';}
+            if($item->incunables==1){$servicios[]='Libros Incunables';}
+
+            //Assing the services
+            if(@count($servicios)>0){
+                $i=0;
+                foreach($servicios as $servicio){
+                    $user->field_servicios['und'][$i]=array('value'=>$servicio);
+                    $i++;
+                }
+                //Saving Data
+               user_save($user);
+                drupal_set_message('Updated services for user '.$user->uid);
+            }
+
+
+
+
+        }
+
+    }
+    return "Se ejecuto la importacion de servicios";
+
+}
+
+function importar_experiencias(){
+
+
+    $bps_previoImport = variable_get('import_experiencias',json_encode(array('9999999999999999999999999')));
+
+    $bps_previoImport = json_decode($bps_previoImport);
+    $exclude= $bps_previoImport;
+    $bps_previoImport = implode(',', $bps_previoImport);
+    //$bps_previoImport = implode(',', array(999999999));
+
+    //print_r($bps_previoImport);
+    $d6db = Database::getConnection('d6', 'default');
+    $result = $d6db->query('SELECT n.nid, n.created, n.title AS title, n.created AS created , e.field_fecha_experiencia_value AS fecha, r.body AS cuerpo,  e.field_testimonio_experiencia_value AS testimonio, e.field_bp_experiencia_value AS bp   FROM content_type_experiencia e, node n , node_revisions r WHERE n.nid=e.nid AND n.status =1 AND r.nid=n.nid AND r.nid=e.nid AND n.vid=r.vid AND n.nid NOT IN('. $bps_previoImport.')');
+
+    foreach ($result as $item) {
+
+
+        //Base Nodo
+         $nodo = new stdClass();
+         $nodo->type = "experiencia";
+         node_object_prepare($nodo);
+         $nodo->title = $item->title;
+         $nodo->language = LANGUAGE_NONE;
+         $nodo->uid =1;
+         $nodo->created = $item->created;
+
+
+        //Valido que tenga Bilbioteca disponible
+
+        $queryBp = db_query('SELECT entity_id FROM field_data_field_n_mero_de_registro WHERE field_n_mero_de_registro_value=:reg', array(':reg' => $item->bp));
+        $reg= $queryBp->fetchField(0);
+
+
+          if($reg>0){
+              $exclude[]= $item->nid;
+
+              $nodo->field_biblioteca['und'][0]['target_id'] = $reg;
+              //Body
+              $nodo->body['und'][0]['value'] = $item->cuerpo;
+              $nodo->body['und'][0]['summary'] = $item->cuerpo;
+              $nodo->body['und'][0]['format'] = 'filtered_html';
+
+              //Testimonio
+              $nodo->field_testimonio['und'][0]['value'] = $item->testimonio;
+              $nodo->body['und'][0]['summary'] = $item->cuerpo;
+              $nodo->body['und'][0]['format'] = 'filtered_html';
+
+
+              //Fecha experiencia
+              $nodo->field_fechad_de_la_experiencia['und'][0]['value'] = $item->fecha;
+              $nodo->field_fechad_de_la_experiencia['und'][0]['timezone'] = 'America/Argentina/Buenos_Aires';
+              $nodo->field_fechad_de_la_experiencia['und'][0]['timezone_db'] = 'America/Argentina/Buenos_Aires';
+              $nodo->field_fechad_de_la_experiencia['und'][0]['date_type'] = 'datetime';
+
+              //tipo experiencia
+
+
+              $resultTipoExperiencia = $d6db->query('SELECT tid FROM term_node WHERE nid = '.$item->nid.' AND tid IN (SELECT tid FROM term_data WHERE vid =4)');
+              if($resultTipoExperiencia->rowCount()>0){
+
+
+
+
+                  $tipoEquivalencia = array();
+                  $tipoEquivalencia[8] = 8;
+                  $tipoEquivalencia[2465] = 9;
+                  $tipoEquivalencia[2469] = 10;
+                  $tipoEquivalencia[2461] = 11;
+                  $tipoEquivalencia[2464] = 12;
+                  $tipoEquivalencia[2470] = 13;
+                  $tipoEquivalencia[2468] = 14;
+                  $tipoEquivalencia[2460] = 15;
+                  $tipoEquivalencia[2463] = 16;
+                  $tipoEquivalencia[2462] = 17;
+                  $tipoEquivalencia[2467] = 18;
+                  $tipoEquivalencia[2466] = 19;
+
+
+                  $tipoEquivalencia[12] = 20;
+                  $tipoEquivalencia[2475] = 21;
+                  $tipoEquivalencia[2474] = 22;
+                  $tipoEquivalencia[2471] = 23;
+                  $tipoEquivalencia[2473] = 24;
+                  $tipoEquivalencia[2472] = 25;
+
+
+                  $tipoEquivalencia[14] = 26;
+                  $tipoEquivalencia[2482] = 27;
+                  $tipoEquivalencia[2479] = 28;
+                  $tipoEquivalencia[2483] = 29;
+                  $tipoEquivalencia[2481] = 30;
+                  $tipoEquivalencia[2478] = 31;
+                  $tipoEquivalencia[2480] = 32;
+                  $tipoEquivalencia[2476] = 33;
+                  $tipoEquivalencia[2477] = 34;
+
+
+                  $tipoEquivalencia[10] = 35;
+                  $tipoEquivalencia[2485] = 36;
+                  $tipoEquivalencia[2487] = 37;
+                  $tipoEquivalencia[2486] = 38;
+                  $tipoEquivalencia[2484] = 39;
+
+
+                  $tipoEquivalencia[9] = 40;
+                  $tipoEquivalencia[2488] = 41;
+                  $tipoEquivalencia[2490] = 42;
+                  $tipoEquivalencia[2493] = 43;
+                  $tipoEquivalencia[2497] = 44;
+                  $tipoEquivalencia[2492] = 45;
+                  $tipoEquivalencia[2496] = 46;
+                  $tipoEquivalencia[2494] = 47;
+                  $tipoEquivalencia[2495] = 48;
+                  $tipoEquivalencia[2491] = 49;
+                  $tipoEquivalencia[2644] = 50;
+                  $tipoEquivalencia[2643] = 51;
+                  $tipoEquivalencia[2489] = 52;
+                  $tipoEquivalencia[2658] = 53;
+
+
+                  $tipoEquivalencia[34] = 54;
+                  $tipoEquivalencia[2500] = 55;
+                  $tipoEquivalencia[2505] = 56;
+                  $tipoEquivalencia[2503] = 57;
+                  $tipoEquivalencia[2502] = 58;
+                  $tipoEquivalencia[2501] = 59;
+                  $tipoEquivalencia[2499] = 60;
+                  $tipoEquivalencia[2498] = 61;
+                  $tipoEquivalencia[2504] = 62;
+
+                  $i=0;
+                  foreach ($resultTipoExperiencia as $tipoExp) {
+
+                      $nodo->field_tipo_de_experiencia['und'][$i]['tid'] = $tipoEquivalencia[$tipoExp->tid];
+                      $i++;
+                  }
+
+
+              }
+
+
+
+
+              //Saving
+
+              node_object_prepare($nodo);
+              //node_save($nodo);
+              drupal_set_message("Se creo el nodo <b>".$nodo->title."</b>");
+
+
+          }
+
+
+
+
+        /*if(node_save($nodo)){
+            print "se ha creado el contenido ".$nodo->title;
+        }*/
+
+
+
+
+
+    }
+    variable_set('import_experiencias', json_encode($exclude));
+    return "Experiencias Guardadas";
+
+
+}
+
+
+function importar_novedades()
+{
+
+
+    $bps_previoImport = variable_get('import_novedades', json_encode(array('9999999999999999999999999')));
+
+    $bps_previoImport = json_decode($bps_previoImport);
+    $exclude = $bps_previoImport;
+    $bps_previoImport = implode(',', $bps_previoImport);
+    $bps_previoImport = implode(',', array(999999999));
+
+    //print_r($bps_previoImport);
+    $d6db = Database::getConnection('d6', 'default');
+    $result = $d6db->query('SELECT n.nid AS nid, n.title AS title, n.created AS created , r.body AS cuerpo   FROM  node n , node_revisions r WHERE  n.status =1 AND r.nid=n.nid  AND n.vid=r.vid AND n.type = :type AND n.nid NOT IN(' . $bps_previoImport . ')', array(':type'=>'noticiabp'));
+
+    foreach ($result as $item) {
+
+
+        //Base Nodo
+        $nodo = new stdClass();
+        node_object_prepare($nodo);
+        $nodo->type = "entrada_del_blog_de_la_bibliotec";
+
+        $nodo->title = $item->title;
+        $nodo->language = LANGUAGE_NONE;
+        $nodo->uid = 1;
+        $nodo->created = $item->created;
+        $nodo->date = strtotime($item->created);
+
+
+
+            $exclude[] = $item->nid;
+
+
+            //Body
+            $nodo->body['und'][0]['value'] = $item->cuerpo;
+            $nodo->body['und'][0]['summary'] = $item->cuerpo;
+            $nodo->body['und'][0]['format'] = 'filtered_html';
+
+
+
+
+            //Saving
+
+
+            //print_r($nodo);
+           //node_save($nodo);
+            drupal_set_message("Se creo el nodo <b>" . $nodo->title . "</b>");
+
+
+
+
+
+        /*if(node_save($nodo)){
+            print "se ha creado el contenido ".$nodo->title;
+        }*/
+
+
+    }
+    variable_set('import_novedades', json_encode($exclude));
+    return "Novedades Guardadas";
+
+
+}
+
+
+function importarNoticias()
+{
+
+
+    $d6db = Database::getConnection('d6', 'default');
+    $result = $d6db->query('SELECT n.nid, n.title, n.created, r.body, c.field_copete_value AS copete FROM node n, node_revisions r , content_field_copete c WHERE  c.nid=n.nid  AND r.nid=n.nid AND c.nid = r.nid AND n.type=:type AND n.status =1  AND n.created < 1434152763 ORDER BY nid ASC', array(':type' => 'noticias'));
+
+    foreach ($result as $item) {
+        drupal_set_title($item->title);
+
+            $nodo = new stdClass();
+         $nodo->type = "article";
+         node_object_prepare($nodo);
+         $nodo->title = $item->title;
+         $nodo->language = LANGUAGE_NONE;
+         $nodo->uid =1;
+         $nodo->created = $item->created;
+        $nodo->date = strtotime($item->created);
+        $item->body = str_replace('www.conabip.gob.ar', 'v1.conabip.gob.ar', $item->body);
+        $item->body = str_replace('"sites/default/files', '"http://1.conabip.gob.ar/sites/default/files', $item->body);
+         $nodo->body[$nodo->language][0]['value'] = $item->body;
+         $nodo->body[$nodo->language][0]['summary'] = $item->body;
+         $nodo->body[$nodo->language][0]['format'] = 'filtered_html';
+
+
+        if(!isset($item->copete)){
+        }
+
+
+         $nodo->field_resumen[$nodo->language][0]['value'] = strip_tags(substr($item->copete,0,$pos));
+         $nodo->field_resumen[$nodo->language][0]['summary'] = strip_tags(substr($item->copete, 0, $pos));
+         $nodo->field_resumen[$nodo->language][0]['safe_value'] = strip_tags(substr($item->copete, 0, $pos));
+
+         //$nodo->field_tipo_de_noticia[$nodo->language][0]['value']='Noticia o artículo';
+
+         if ($nodo = node_submit($nodo)) { // Prepare node for saving
+            // node_save($nodo);
+             //print '<hr>';
+             //print_r($nodo);
+             print "Node with nid " . $nodo->nid . " saved!<br>";
+         }
+
+
+    }
+    return "importadas las noticias";
+}
+
+
+
+function borrar_usuarios(){
+
+  //$eliminar= array(1846,1847,1848,1849,1850,1851,1852,1854,1856,1857,1859,1860,1861,1862,1864,1867,1868,1869,1870,1871,1872,1875,1876,1882,1886,1888,1890,1891,1892,1893,1894,1895,1896,1898,1899,1900,1902,1903,1904,1909,1910,1911,1912,1918,1932,1936,1937,1938,1940,1941,1944,1945,1946,1948,1951,1952,1953,1955,1958,1969,1971,1978,1980,1984,1989,1990,1997,1998,1999,2003,2004,2006,2007,2012,2013,2014,2016,2018,2019,2022,2023,2027,2030,2047,2049,2052,2053,2054,2055,2060,2062,2063,2066,2068,2070,2072,2073,2079,2084,2085,2086,2087,2088,2090,2091,2093,2096,2099,2101,2102,2103,2105,2110,2114,2117,2122,2127,2128,2131,2137,2139,2144,2146,2150,2152,2154,2155,2159,2160,2162,2163,2164,2176,2181,2189,2192,2197,2200,2205,2206,2207,2209,2210,2221,2224,2225,2229,2230,2234,2246,2254,2255,2258,2260,2261,2264,2267,2274,2276,2278,2279,2281,2283,2284,2287,2288,2289,2291,2293,2294,2295,2298,2301,2302,2303,2304,2305,2307,2310,2313,2316,2321,2322,2324,2326,2330,2331,2335,2336,2337,2339,2340,2349,2350,2352,2354,2357,2359,2361,2363,2364,2365,2366,2367,2380,2383,2387,2390,2396,2398,2399,2400,2401,2402,2403,2405,2412,2413,2423,2425,2428,2429,2439,2441,2447,2449,2451,2458,2459,2460,2463,2465,2470,2473,2476,2477,2478,2479,2480,2483,2488,2490,2503,2512,2514,2515,2534,2538,2539,2541,2545,2548,2551,2562,2564,2567,2568,2571,2576,2577,2581,2584,2585,2587,2589,2590,2599,2606,2616,2617,2618,2623,2631,2633,2639,2642,2646,2648,2652,2653,2657,2662,2668,2669,2672,2684,2686,2688,2689,2690,2691,2693,2694,2696,2702,2704,2707,2712,2713,2715,2716,2717,2719,2723,2727,2728,2733,2740,2742,2744,2747,2748,2751,2754,2755,2759,2760,2761,2767,2768,2773,2774,2775,2780,2783,2784,2786,2788,2789,2791,2799,2801,2804,2808,2811,2813,2817,2818,2820,2824,2827,2833,2834,2835,2839,2840,2842,2843,2848,2853,2854,2855,2856,2857,2858,2860,2864,2867,2870,2871,2880,2881,2883,2884,2885,2886,2887,2888,2889,2890,2891,2893,2894,2895,2896,2897,2898,2899,2900,2902,2905,2906,2908,2909,2911,2912,2914,2915,2916,2919,2920,2921,2922,2923,2924,2925,2926,2927,2928,2929,2930,2931,2932,2934,2935,2936,2937,2939,2941,2942,2944,2945,2947,2948,2950,2951,2952,2954,2957,2958,2963,2964
+  //);
+  //foreach ($eliminar as $key){
+    //if(user_delete($key)){
+      //drupal_set_message("usuario ".$key." eliminado");
+    //}
+  //}
+  return "listo";
+}

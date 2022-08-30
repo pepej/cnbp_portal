@@ -1,0 +1,438 @@
+<?php
+/*Este modulo tiene funciones especiales para el trámite de recategoriación Conabip. Estas funciones son llamadas por webforms con validaciones y contenidos en PHP*/
+
+//Puede realizar el trámite
+
+function cnbp_puede_realizar_tramite(){
+	$tramitesWebform='1225,1246';
+    $tramitesWebformD6=array(106,25283);
+	$lapso = 3600*24*365;
+
+	global $user;
+    $user = user_load($user->uid);
+    $regUser=$user->field_n_mero_de_registro;
+    $regUser=$regUser['und'][0]['value'];
+    if($regUser<10){
+        $regUser="000".$regUser;
+    }
+    if($regUser<100){
+        $regUser="00".$regUser;
+    }
+     if($regUser<1000){
+        $regUser="0".$regUser;
+    }
+	
+
+    $hasD6Id=false;
+    $userId_D6=db_query('SELECT uid FROM d6_profile_values WHERE fid={:fid} AND value={:reg} LIMIT 1',array(':fid'=>1, ':reg'=>$regUser));
+    if($userId_D6->rowCount()>0){
+        $userId_D6=$userId_D6->fetchAll();
+        $userId_D6=$userId_D6[0];
+        $userId_D6=$userId_D6->uid;
+        $hasD6Id=true;
+    }
+    
+	$scriptHideForm="<script>
+	jQuery(document).ready(function(){jQuery('.webform-client-form #edit-submit').attr('disabled',true); jQuery('.webform-client-form').hide();});
+	</script>
+	";
+
+	//Validacion de que este logueado
+	if($user->uid==0){
+		$msg="Necesita ingresar en el portal para acceder al trámite.";
+		return $msg.$scriptHideForm;
+	}
+
+	//Validacion de cuente con el nro de registro de conabip
+
+    elseif(empty($user->field_n_mero_de_registro['und'][0]['value'])|| $user->field_n_mero_de_registro['und'][0]['value']=="") {
+		$msg="Necesita ser el representante de una biblioteca para poder realizar este trámite. Su perfil de usuario debe establecer el Nro de Registro de la biblioteca. Si no puede actualizarlo, contacte con el administrador.";
+		return $msg.$scriptHideForm;
+	}
+
+
+	//Validacion de antiguedad de último trámite > 365dias o fecha de incorp al registro > 365 dias
+	elseif(!empty($user->field_n_mero_de_registro['und'][0]['value'])|| $user->field_n_mero_de_registro['und'][0]['value']!=""){
+		$resultCatBP= db_query('SELECT * FROM categoriasBp WHERE Registro={:reg} AND Estado={:estado}',array(':reg'=>$regUser,':estado'=>1));
+
+		//El usuario esta dentro del listado de categoriaBP, hay que verificar si realizo el tramite anteriormente o tiene la antiguedad suficiente.
+		if($resultCatBP->rowCount() >0){
+
+			//Verifico si realizo el tramite anteriormente en D6 con el type categorización
+            $queryTR_nodos=db_query('SELECT t.nid , n.created  FROM d6_content_type_tr_categorizacion t , d6_node n WHERE t.field_no_registro_value = {:reg} AND t.nid= n.nid ORDER BY n.created DESC LIMIT 1',array(':reg'=>$regUser));
+			//Verifico en TR x nodos
+			if($queryTR_nodos->rowCount()>0){
+				while($result = $queryTR_nodos->fetchAll()){
+                    //print_r($result);
+                    $lastTimeNodo=$result[0];
+					$lastTimeNodo=$lastTimeNodo->created;
+                    //print_r($lastTimeNodo);
+				}	
+
+			}
+          $lastTimeWebform=1;  
+          if($hasD6Id==true){
+            //Verifico en TR Webforms D6.
+            $resultWebforms = db_query('SELECT submitted as fecha FROM d6_webform_submmissions  WHERE nid IN ({:nids})  AND uid={:uid} ORDER by submitted DESC LIMIT 1',array(':nids'=>$tramitesWebformD6,':uid'=>$userId_D6));
+            
+
+            if($resultWebforms->rowCount()>0){
+                while($result = $resultWebforms->fetchAll()){
+                    $result=$result[0];
+                    $lastTimeWebform=$result->fecha;
+
+                }
+            }
+          }
+			
+
+
+
+            //Verifico en Webforms D7
+            
+            $resultWebformsD7 = db_query('SELECT submitted as fecha FROM webform_submissions WHERE nid={:nid} AND uid={:uid} ORDER by submitted DESC LIMIT 1',array(':nid'=>1246,':uid'=>$user->uid));
+
+            if( $resultWebformsD7->rowCount()>0){
+                while($result =  $resultWebformsD7->fetchAll()){
+                    $result=$result[0];
+                    $lastTimeWebformD7=$result->fecha;
+                }
+                if($lastTimeWebformD7 > $lastTimeWebform ) {$lastTimeWebform=$lastTimeWebformD7;}
+            }
+
+
+
+
+
+			//Caso que ya haya completado alguna vez el tramite
+			if(isset($lastTimeNodo) || isset($lastTimeWebform)){
+				$lastTime = max($lastTimeWebform,$lastTimeNodo);
+				$nextTime = $lastTime + $lapso;
+				//Si no ha pasado el lapso indicado desde la ultima vez
+				if(time()<$nextTime) {
+					$msg="Se requiere que pase al menos 365 días desde la última vez que realizo el trámite de categorización. Intentelo a partir del día ".date('d-m-Y',$nextTime).".";
+					return $msg.$scriptHideForm;
+				}
+			}
+			//Caso que nunca haya completado el tramite
+			else {
+
+				//Verifico Antiguedad registro.
+				while($result = $resultCatBP->fetchAll()){
+                    //  print_r($result[0]);
+                    $result = $result[0];
+					$entradaRegistro=strtotime($result->FechaDisposicion);
+					if($entradaRegistro>0){
+						$nextTime = $entradaRegistro + $lapso;
+						if(time()<$nextTime) {
+						$msg="Su entrada al registro de CONABIP, aun no tiene el año de antiguedad requerido para hacer el trámite de recategoriación, intentelo nuevamente a partir del ".date('d-m-Y',$nextTime).".";
+						return $msg.$scriptHideForm;
+						}
+					}
+
+				}
+
+
+			}
+
+		}
+
+		//El usuario no esta dentro del listado de categoriasBp
+		else {
+			$msg="Su número de registro (".$user->field_n_mero_de_registro['und'][0]['value'].") no se encuentra aún dentro de la base de datos del portal o bien su registro no está activo. Intentelo más tarde o contacte al administrador.";
+			return $msg.$scriptHideForm;
+		}
+	}
+
+	//Acepta iniiciar tramite
+
+		session_start();
+	if($_GET['userAcepta']){$_SESSION['USERACEPTA_RECAT']=1;}
+	if(empty($_SESSION['USERACEPTA_RECAT'])){
+		$msg= "
+		<p>Para poder acceder a la recategorización la Biblioteca Popular deberá cumplir con los siguientes requisitos:<br><br>
+a) Haber acreditado su regularidad Institucional ante el Organismo.<br>
+b) Haber cumplido con la presentación de la Declaración Jurada para la Actualización de Datos de las Bibliotecas Populares.<br><br>
+
+Asimismo conforme lo dispone la parte pertinente de los artículos 1.2 y 1.4. Anexo II de la disposición CONABIP N°33/2014 queda establecido que:
+<br><br>
+1.2. En los casos de las Bibliotecas Populares reconocidas en forma previa a la presente reglamentación el trámite de recategorización podrá iniciarse una vez al año.
+<br><br>
+1.4. Ninguna Biblioteca Popular podrá ser categorizada en una categoría A sin haber ostentado durante el lapso de un año la categoría B. Lo expuesto obedece a la aplicación de un principio de progresividad que contemple que las bibliotecas populares asciendan de categoría en razón de un proceso de crecimiento institucional, arraigo en la comunidad y perduración en el tiempo.
+<br><br>
+El presente trámite dará inicio una vez recepcionada su solicitud impresa y suscripta en donde tomaran intervención las distintas áreas de la CONABIP.</p><br>
+
+   <p> Para realizar el tramite de categorizacion debera iniciar la sesión en el Portal CONABIP con su usuario y contraseña.
+   <br><br>
+
+<b>INSTRUCTIVO PARA COMPLETAR LA TABLA DE CATEGORIZACIÓN</b>
+<br><br>
+1. Iniciar el trámite con el link inferior de está pagina (REALIZAR CATEGORIZACIÓN ) y aceptar las condiciones del mismo.
+<br><br>
+2. Marcar en cada ítem la respuesta que corresponda. Se podrán dejar en blanco los ítems que no conformen su respuesta.
+<br><br>
+3. Una vez finalizada la contestación de todos los ítems, se recomienda revisar los datos vertidos, pues no podrán realizarse modificaciones una vez que se concrete el paso siguiente.
+<br><br>
+4. Con todos los ítems completos, presionar el botón ENVIAR para obtener el Resultado. El sistema informará tanto el puntaje obtenido como la categoría correspondiente al mismo. Quedará registrada la fecha y hora de categorización, la cual deberá coincidir con la que figure en la versión impresa enviada como declaración jurada.
+<br><br>
+5. Presionar el botón IMPRIMIR para obtener la versión a enviar por correo postal en carácter de declaración jurada.
+<br><br>
+6. Enviar por correo postal a CONABIP (Ayacucho 1578, Ciudad Autónoma de Buenos Aires - CP 1112AAB) en un plazo no mayor a diez días hábiles contados desde la fecha de Categorización que figura en la Tabla, la versión impresa en carácter de declaración jurada, con la firma de las autoridades de la Comisión Directiva y el sello de la biblioteca popular.
+<br><br>
+El cumplimiento de todos y cada uno de los pasos mencionados es condición indispensable para que se concrete la categorización requerida. El resultado de la misma será sujeto a consideración de las unidades correspondientes. 
+
+<br><br>
+		<a href=\"?userAcepta=".time()."\" class=\"button\">Realizar Categorización ( Acepto las condiciones )</a>
+
+		</p>";
+
+
+		return $msg.$scriptHideForm;
+	}
+
+
+
+	//Fin acepta
+
+
+
+
+}
+
+
+
+
+
+function cnbp_obtener_categoria($catResultante){
+	global $user;
+
+	$categoria[1]="A";
+	$categoria[2]="B";
+	$categoria[3]="C";
+
+
+
+    $user = user_load($user->uid);
+
+
+	$query= db_query('SELECT * FROM categoriasBp WHERE Registro={:reg} AND Estado={:estado}',array(':reg'=>$user->field_n_mero_de_registro['und'][0]['value'],':estado'=>1));
+	if($query->rowCount()>0){
+		while($result=$query->fetchAll()){
+            $result=$result[0];
+
+			//Caso que obtenga calif C
+			if($catResultante=="C" && $result->Categoria==3){
+				return "C";
+			}
+			if($catResultante=="C" && ($result->Categoria==2 || $result->Categoria==1)){
+				return $categoria[$result->Categoria];
+			}
+
+
+			//Caso que obtenga calif B
+			if($catResultante=="B" && ($result->Categoria==3 ||  $result->Categoria==2)){
+				return "B";
+			}
+			if($catResultante=="B" && $result->Categoria==1){
+				return "A";
+			}
+
+
+			//Caso que obtenga calif A
+			if($catResultante=="A" && ($result->Categoria==1 || $result->Categoria==2 )){
+				return "A";
+			}
+			if($catResultante=="A" && $result->Categoria==3){
+				return "B";
+			}
+
+
+
+		}
+	}
+	else {
+		return "C";
+	}
+
+}
+
+
+function conabip_recat_functions_webform_submission_presave($node, &$submission) {
+    if($node->nid==1225 || $node->nid==1246){
+
+
+        //Puntos Acervo Bibliografico
+        $puntos[3]['Hasta 1500']=0;
+        $puntos[3]['De 1501 a 5000']=1;
+        $puntos[3]['De 5001 a 10000']=2;
+        $puntos[3]['De 10001 a 15000']=4;
+        $puntos[3]['De 15001 a 20000']=6;
+        $puntos[3]['Más de 20000']=8;
+
+        //Puntos Mat Audiovisual
+        $puntos[4]['Hasta 100']=0;
+        $puntos[4]['De 101 a 500']=1;
+        $puntos[4]['Más de 500']=3;
+
+        //Puntos Prestamos en sala
+        $puntos[6]['Hasta 3600']=0;
+        $puntos[6]['De 3601 a 7200']=1;
+        $puntos[6]['De 7201 a 12000']=2;
+        $puntos[6]['De 12001 a 18000']=3;
+        $puntos[6]['Más de 18000']=4;
+
+        //Puntos Prestamos a domicilio
+        $puntos[7]['Hasta 3600']=0;
+        $puntos[7]['De 3601 a 6000']=1;
+        $puntos[7]['De 6001 a 8400']=2;
+        $puntos[7]['De 8401 a 12000']=3;
+        $puntos[7]['Más de 12000']=4;
+
+        //Puntos Prop y prom cultural
+        $puntos[9]['Hemeroteca']=2;
+        $puntos[9]['Acceso a PC para usuarios']=1;
+        $puntos[9]['Acceso a Internet para usuarios']=1;
+        $puntos[9]['Capacitación en TICs']=2;
+        $puntos[9]['Eventos Artísticos']=2;
+        $puntos[9]['Actividades Regulares de Animación a la lectura en niños y niñas']=1;
+        $puntos[9]['Actividades Regulares de Animación a la lectura en Adolescentes y Jóvenes']=1;
+        $puntos[9]['Actividades Regulares de Animación a la lectura en Adultos']=1;
+        $puntos[9]['Actividades Regulares de Animación a la lectura en Adultos Mayores']=1;
+        $puntos[9]['Animación a la Lectura fuera de la biblioteca']=2;
+        $puntos[9]['Promoción de Derechos (Información Ciudadana sobre Derechos, Servicios y Trámites)']=3;
+        $puntos[9]['Servicios para Discapacidad']=2;
+        $puntos[9]['Servicios Móviles (bibliomóvil, bibliobici, caja viajera, etc.)']=2;
+        $puntos[9]['Filiales']=1;
+        $puntos[9]['Publicaciones Impresas con frecuencia mínima mensual (Boletines o Revistas)']=1;
+
+        //Puntos Socios con cuota al dia
+        $puntos[11]['Hasta 30']=0;
+        $puntos[11]['De 31 a 100']=4;
+        $puntos[11]['De 101 a 200']=5;
+        $puntos[11]['De 201 a 300']=6;
+        $puntos[11]['De 301 a 400']=7;
+        $puntos[11]['De 401 a 500']=8;
+        $puntos[11]['Más de 500']=9;
+
+        //Puntos usuarios anuales
+        $puntos[12]['Hasta 4800']=1;
+        $puntos[12]['De 4801 a 8400']=2;
+        $puntos[12]['De 8401 a 12000']=3;
+        $puntos[12]['De 12001 a 16000']=4;
+        $puntos[12]['Más de 16000']=5;
+
+        //Puntos Personal Rentado
+        $puntos[14]['Ninguno']=0;
+        $puntos[14]['De 1 a 2']=3;
+        $puntos[14]['De 3 a 5']=4;
+        $puntos[14]['Más de 5']=5;
+
+        //Puntos Personal Universitario
+        $puntos[16]['1 Bibliotecario con nivel universitario']=4;
+        $puntos[16]['Más de 1 Bibliotecario con nivel universitario']=5;
+
+        //Puntos Personal Terciario
+        $puntos[17]['1 Bibliotecario con nivel terciario']=3;
+        $puntos[17]['Más de 1 Bibliotecario con nivel terciario']=4;
+
+        //Puntos Personal Idoneo
+        $puntos[18]['Bibliotecario idóneo']=2;
+        $puntos[18]['Más de 1 Bibliotecario idóneo']=3;
+
+        //Puntos Personal Docente
+        $puntos[19]['1 Personal docente']=1;
+        $puntos[19]['Más de 1 Personal docente']=2;
+
+        //Puntos voluntarios
+        $puntos[20]['Ninguno']=0;
+        $puntos[20]['De 1 a 2']=3;
+        $puntos[20]['De 3 a 5']=4;
+        $puntos[20]['Más de 5']=5;
+
+        //Puntos Hs Semanales
+        $puntos[22]['De 20 a 30 hs']=4;
+        $puntos[22]['De 31 a 40 hs']=5;
+        $puntos[22]['Más de 40 hs']=6;
+
+        //Puntos fines de semana
+        $puntos[23]['Sábado o Domingo']=1;
+        $puntos[23]['Sábado y Domingo']=2;
+
+        //Puntos DIGIBEPE
+        $puntos[25]['Ya incorporaron Digibepé']=5;
+        $puntos[25]['No incorporaron Digibepé']=0;
+
+        //Puntos Nivel procesamiento
+        $puntos[26]['Obras Procesadas hasta el 25%']=1;
+        $puntos[26]['Obras Procesadas hasta el 50%']=2;
+        $puntos[26]['Obras Procesadas hasta el 75%']=3;
+        $puntos[26]['Obras Procesadas hasta el 100%']=4;
+
+
+        //Puntos sup. edificio
+        $puntos[28]['Hasta 50 m2']=1;
+        $puntos[28]['De 51 m2 a 100 m2']=2;
+        $puntos[28]['De 101 m2 a 200 m2']=3;
+        $puntos[28]['Más de 200 m2']=4;
+
+        //Puntos cantidad de instalaciones
+        $puntos[29]['Sala de Lectura']=0;
+        $puntos[29]['Sala de Lectura+Sector Infantil']=2;
+        $puntos[29]['Sala deLectura+Sector Infantil+SUM']=3;
+
+        //Puntos Antiguedad
+        $puntos[31]['Hasta 15 años']=0;
+        $puntos[31]['De 16 a 50 años']=1;
+        $puntos[31]['De 51 a 99 años']=2;
+        $puntos[31]['Más de 100 años']=3;
+
+        //print_r($submission->data);
+
+
+        $cids=array_keys($submission->data);
+
+
+
+        foreach($cids as $key){
+        	if($key!=9){
+
+        		$suma= $suma + $puntos[$key][$submission->data[$key][0]];
+        	}
+        	if($key==9){
+        		$key2=0;
+
+        		foreach ($submission->data[$key] as $multiplefield){
+
+        			$suma= $suma + $puntos[$key][$submission->data[$key][$key2]];
+        			$key2++;
+        		}
+        	}
+
+        }
+
+
+
+        $categoriaResultante="C";
+        if(($suma/20)>=2.6){$categoriaResultante="B";}
+        if(($suma/20)>=4){$categoriaResultante="A";}
+
+       global $user; 
+       $catActualenDB = db_query('SELECT * FROM categoriasBp WHERE Registro={:reg} AND Estado={:estado}',array(':reg'=>$user->field_n_mero_de_registro['und'][0]['value'],':estado'=>1))->fetchAll();
+       $catActualenDB=$catActualenDB[0];
+       $catActualenDB=$catActualenDB->Categoria;
+       if($catActualenDB==1){$catActualenDB='A';}
+       if($catActualenDB==2){$catActualenDB='B';}
+       if($catActualenDB==3){$catActualenDB='C';}
+
+        $submission->data[32][0]= $suma;
+        $submission->data[33][0]=$categoriaResultante;
+        $categoriaAsignada= cnbp_obtener_categoria($categoriaResultante);
+        $submission->data[34][0]=$catActualenDB;
+        $submission->data[35][0]=$categoriaAsignada;
+        drupal_set_message("La categoría que fue asignada mediante el trámite es ".$categoriaAsignada);
+
+
+    }
+
+
+}

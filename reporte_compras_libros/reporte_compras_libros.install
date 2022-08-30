@@ -1,0 +1,103 @@
+<?php 
+// Instalador
+function reporte_compras_libros_schema() {
+  $schema['cnbp_reporte_compras_libros'] = array(
+    // Example (partial) specification for table "node".
+    'description' => 'Tabla de reporte de compra',
+    'fields' => array(
+      'id_libro' => array(
+        'description' => 'Identificador del libro',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'id_comprador' => array(
+        'description' => 'Identificador del comprador',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'event' => array(
+        'description' => 'Evento en el que se compraron los libros',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'date' => array(
+        'description' => 'Fecha en que se registro la compra',
+        'type' => 'int',
+        'length' => 11,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+   
+  );
+   $schema['cnbp_base_libros_cal'] = array(
+    // Example (partial) specification for table "node".
+    'description' => 'Tabla para importar los datos de la CAL',
+    'fields' => array(
+       'isbn' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+       'title' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+       'sello' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+       'razon_social' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+
+       'edicion' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+
+       'tipo_publico' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+
+       'fecha_publicacion' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+       'autor' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+       'tipo_libro' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+   ),
+  );
+  return $schema;
+}

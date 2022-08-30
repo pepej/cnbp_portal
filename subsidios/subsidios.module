@@ -1,0 +1,238 @@
+<?php
+/*Hook Init*/ 
+function subsidios_init(){
+
+
+    /*
+    //Validacion de usuarios para webform
+    
+    if(arg(0)=='node' && arg(1)==1424){
+
+        $validRegisters=array(18,19,32,77,78,87,90,98,100,101,115,126,131,165,177,202,223,231,233,249,252,270,279,287,306,341,354,384,385,387,411,419,424,426,427,455,460,467,470,473,475,488,491,495,501,509,527,544,560,588,595,612,644,645,652,665,700,709,718,724,725,749,753,766,770,790,793,802,803,805,806,811,815,819,829,859,870,876,897,898,913,916,925,935,945,947,957,967,985,991,992,997,1016,1021,1028,1115,1119,1144,1145,1179,1191,1193,1242,1246,1248,1257,1276,1299,1311,1326,1345,1347,1391,1395,1426,1464,1472,1478,1497,1499,1502,1530,1554,1659,1662,1673,1695,1724,1729,1733,1758,1766,1769,1789,1824,1827,1830,1880,1885,1924,1936,1945,1952,1970,2005,2021,2022,2040,2045,2068,2082,2090,2115,2123,2127,2128,2134,2137,2142,2148,2158,2159,2177,2178,2191,2198,2207,2209,2242,2257,2259,2264,2275,2277,2296,2316,2324,2355,2366,2371,2373,2406,2418,2419,2426,2436,2444,2453,2472,2501,2534,2543,2546,2561,2597,2601,2608,2611,2631,2642,2644,2647,2655,2662,2673,2691,2692,2723,2737,2772,2794,2804,2807,2811,2815,2828,2831,2843,2861,2862,2863,2866,2870,2872,2875,2876,2887,2891,2894,2906,2922,2927,2928,2941,2944,2945,2970,2997,3000,3004,3006,3012,3041,3042,3046,3055,3057,3060,3068,3083,3084,3092,3099,3103,3105,3107,3108,3115,3116,3122,3150,3155,3158,3164,3177,3181,3182,3183,3185,3188,3190,3192,3199,3202,3212,3214,3215,3216,3219,3221,3223,3231,3233,3242,3251,3255,3257,3258,3262,3266,3267,3270,3271,3274,3275,3277,3279,3285,3291,3294,3296,3304,3309,3310,3312,3317,3318,3319,3329,3330,3336,3337,3342,3346,3347,3349,3350,3370,3374,3377,3383,3386,3387,3389,3390,3395,3397,3402,3404,3408,3409,3421,3422,3431,3432,3433,3437,3439,3446,3450,3453,3456,3457,3460,3462,3465,3474,3477,3483,3486,3489,3490,3496,3497,3504,3507,3511,3516,3519,3520,3524,3527,3532,3534,3535,3546,3549,3550,3552,3558,3561,3568,3572,3576,3580,3581,3586,3591,3593,3608,3616,3623,3629,3631,3634,3637,3644,3645,3648,3649,3650,3658,3659,3662,3678,3689,3691,3693,3697,3702,3708,3711,3712,3716,3721,3723,3724,3725,3727,3732,3734,3735,3755,3757,3763,3769,3772,3773,3790,3791,3811,3812,3821,3825,3826,3828,3830,3833,3835,3839,3841,3867,3869,3873,3874,3885,3889,3893,3894,3899,3901,3906,3907,3911,3919,3920,3923,3929,3932,3934,3935,3936,3943,3948,3956,3967,3968,3969,3973,3978,3980,3984,3986,3990,3998,4000,4002,4010,4015,4020,4022,4023,4029,4035,4037,4040,4054,4057,4058,4059,4060,4063,4066,4069,4070,4093,4102,4104,4105,4111,4113,4114,4116,4118,4122,4129,4134,4137,4138,4141,4142,4145,4149,4156,4157,4158,4161,4163,4170,4176,4178,4187,4189,4190,4191,4195,4197,4203,4205,4207,4210,4211,4212,4214,4219,4225,4230,4231,4232,4235,4237,4244,4245,4246,4247,4249,4252,4254,4255,4256,4265,4270,4274,4277,4282,4286,4299,4300,4303,4304,4307,4308,4311,4312,4313,4315,4316,4318,4321,4323,4325,4331,4332,4333,4337,4340,4344,9999);
+
+            global $user;
+            $user = user_load(array('uid'=>$user->uid));
+            $reg=$user->field_n_mero_de_registro;
+
+
+
+            if(!in_array(intval($reg['und'][0]['value']), $validRegisters)){
+               drupal_goto("<front>");
+            }
+
+   
+    }
+    */
+}
+
+
+
+
+/*
+ * Hook Menu
+ */
+function subsidios_menu(){
+    $items['subsidios'] = array(
+            'title' => t('Subsidios'),
+            'page callback' => 'subsidios_page',
+            'access arguments' => array('access subsidios'),
+            'type' => MENU_SUGGESTED_ITEM,
+        );
+
+     $items['subsidios/consultas'] = array(
+            'title' => t('Consulta de Subsidios'),
+            'page callback' => 'subsidios_page_consultas',
+            'access arguments' => array('access subsidios consultas'),
+            'type' => MENU_SUGGESTED_ITEM,
+        );
+    return $items;
+}
+
+/*
+ * Hook Perms
+ */
+function subsidios_permission(){
+  return array(
+    'access subsidios' => array(
+      'title' => t('Acceder a la visualización de subsidios'),
+    ),
+    'access subsidios consultas' => array(
+      'title' => t('Acceder a la página de consulta de subsidios genérica (para UT y Rendiciones)'),
+    ),
+  );
+}
+
+/**
+ * Render Subsidios Page
+ */
+function subsidios_page(){
+    global $user;
+    $user = user_load(array('uid'=>$user->uid));
+    $reg=$user->field_n_mero_de_registro['und'][0]['value'];
+
+
+    if($reg){
+
+    		$query=db_query('SELECT  tipo, nroRes, MontoOtorgado, EstadoPago, FechaDeposito, Vto, EstadoRendicion, FechaEstadoRendicion FROM subsidios_x WHERE NroRegistro=:reg',array(':reg'=>$reg));
+
+    		$count = $query->rowCount();
+
+    		if($count>0){
+                    $table='<br><br><table class="table table-striped">';
+                    $table.='<tr><td><b>Tipo Resolución</b></td><td><b>Nro de Resolución</b></td><td><b>Monto Otorgado</b></td><td><b>Estado del Pago</b></td><td><b>Fecha</b></td><td><b>Vencimiento</b></td><td><b>Estado Rendicion</b></td><td><b>Estado Fecha Rendicion</b></td></tr>';
+    				while($result=$query->fetchAssoc()){
+
+
+    					if($result['Vto'] == "1899-12-31 00:00:00"){$result['Vto']="";}
+    					if($result['Vto']=='1899-12-31'){$result['Vto']="";}
+
+    					//if($result['Vto']!=""){$result['Vto']=  date('d-m-Y',strtotime($result['Vto']));}
+    					//$result['FechaDeposito']=date('d-m-Y',strtotime($result['FechaDeposito']));
+    					$result['MontoOtorgado'] = '$ '.number_format($result['MontoOtorgado'],0,',','.');
+    					$resultTable[]= $result;
+                        //print_r($result);
+                        $table.='<tr><td>'.$result['tipo'].'</td><td>'.$result['nroRes'].'</td><td>'.$result['MontoOtorgado'].'</td><td>'.$result['EstadoPago'].'</td><td>'.$result['FechaDeposito'].'</td><td>'.$result['Vto'].'</td><td>'.$result['EstadoRendicion'].'</td><td>'.$result['FechaEstadoRendicion'].'</td></tr>';
+
+
+    					}
+                    $table.='</table>';
+
+                //$resultTable=theme('table',array('Tipo Resolución','Nro de Resolución','Monto Otorgado','Estado del Pago','Fecha','Vencimiento'),$resultTable);
+
+
+    			$datosBP=db_query('SELECT * FROM subsidios_x WHERE NroRegistro=:reg LIMIT 1',array(':reg'=>$reg));
+
+
+    			while($dato=$datosBP->fetchAssoc()){
+
+    							$datoBP='<br/>Para la Biblioteca Popular <strong>'.$reg.'</strong> se han encontrado <strong>'.$count.'</strong> subsidios';
+    							}
+    			}
+
+
+
+
+
+    		$resultados= $datoBP.'<!-- br/>Al día '.date('d/m/Y',time()).' para la BP <strong>'.$registro.'</strong> se han encontrado '.$count.' subsidio/s asignado/s.<br/ -->';
+    		$resultados.= $table;
+    		}
+
+    	if($count>0){
+    			return $resultados.'<p class="leyendaSubsidios"><br>Ante problemas en la cuenta por favor dirijase a su sucursal bancaria a efectos de corroborar el estado de la misma y recuerde informar la situación al mail <a href="mailto:abenef@conabip.gov.ar">abenef@conabip.gov.ar</a> o telefónicamente al <b>0800-444-0068</b>.</p>';
+
+    	}
+    	else {
+    		return "<br><br>No se han encontrados subsidios para esta Biblioteca.";
+    	}
+
+
+}
+
+
+
+
+
+/**
+ * Render Subsidios Page
+ */
+function subsidios_page_consultas(){
+    global $user;
+    $user = user_load(array('uid'=>$user->uid));
+  
+
+    $reg= $_GET['reg'];
+    $res= $_GET['res'];
+    $validQuery=false;
+
+    if(!empty($reg) && empty($res)){
+         $query=db_query('SELECT  NroRegistro ,tipo, nroRes, MontoOtorgado, EstadoPago, FechaDeposito, Vto, EstadoRendicion, FechaEstadoRendicion FROM subsidios_x WHERE NroRegistro=:reg',array(':reg'=>$reg));
+         $validQuery=true;
+    }
+     if(empty($reg) && !empty($res)){
+         $query=db_query('SELECT  NroRegistro ,tipo, nroRes, MontoOtorgado, EstadoPago, FechaDeposito, Vto, EstadoRendicion, FechaEstadoRendicion FROM subsidios_x WHERE nroRes LIKE :res',array(':res'=>'%'.db_like($res).'%'));
+         $validQuery=true;
+    }
+
+    if(!empty($reg) && !empty($res)){
+         $query=db_query('SELECT  NroRegistro ,tipo, nroRes, MontoOtorgado, EstadoPago, FechaDeposito, Vto, EstadoRendicion, FechaEstadoRendicion FROM subsidios_x WHERE nroRes LIKE :res AND NroRegistro=:reg',array(':res'=>'%'.db_like($res).'%',':reg'=>$reg));
+         $validQuery=true;
+    }
+    if(empty($reg) && empty($res)){
+         $query=db_query('SELECT  NroRegistro ,tipo, nroRes, MontoOtorgado, EstadoPago, FechaDeposito, Vto, EstadoRendicion, FechaEstadoRendicion FROM subsidios_x LIMIT 0');
+         $validQuery=true;
+    }
+
+    $form= '<form method="GET">
+
+    
+        <label>Filtrar por número de registro</label>
+        <input type="text" name="reg" value="'.$_GET['reg'].'">
+        <label>Filtrar por número de resolución</label>
+           
+        <input type="text" name="res" value="'.$_GET['res'].'">
+
+
+
+
+        <input type="submit" value="Filtrar">
+    </form>
+  
+
+    ';
+
+    if($validQuery==true){
+
+           
+            $count = $query->rowCount();
+
+            if($count>0){
+                    $table='<br><br><table class="table table-striped">';
+                    $table.='<tr><td><b>Biblioteca</b></td><td><b>Tipo Resolución</b></td><td><b>Nro de Resolución</b></td><td><b>Monto Otorgado</b></td><td><b>Estado del Pago</b></td><td><b>Fecha</b></td><td><b>Vencimiento</b></td><td><b>Estado Rendicion</b></td><td><b>Fecha Estado Rendicion</b></td></tr>';
+                    while($result=$query->fetchAssoc()){
+
+
+                        if($result['Vto'] == "1899-12-31 00:00:00"){$result['Vto']="";}
+                        if($result['Vto']=='1899-12-31'){$result['Vto']="";}
+
+                        //if($result['Vto']!=""){$result['Vto']=  date('d-m-Y',strtotime($result['Vto']));}
+                        //$result['FechaDeposito']=date('d-m-Y',strtotime($result['FechaDeposito']));
+                        $result['MontoOtorgado'] = '$ '.number_format($result['MontoOtorgado'],0,',','.');
+                        $resultTable[]= $result;
+                        //print_r($result);
+                        $table.='<tr><td>BP'.$result['NroRegistro'].'</td><td>'.$result['tipo'].'</td><td>'.$result['nroRes'].'</td><td>'.$result['MontoOtorgado'].'</td><td>'.$result['EstadoPago'].'</td><td>'.$result['FechaDeposito'].'</td><td>'.$result['Vto'].'</td><td>'.$result['EstadoRendicion'].'</td><td>'.$result['FechaEstadoRendicion'].'</td></tr>';
+
+
+                        }
+                    $table.='</table>';
+
+                //$resultTable=theme('table',array('Tipo Resolución','Nro de Resolución','Monto Otorgado','Estado del Pago','Fecha','Vencimiento'),$resultTable);
+
+
+                $datosBP=db_query('SELECT * FROM subsidios_x WHERE NroRegistro=:reg LIMIT 1',array(':reg'=>$reg));
+
+
+                while($dato=$datosBP->fetchAssoc()){
+
+                               if($reg)
+                                $datoBP='<br/>Para la Biblioteca Popular <strong>'.$reg.'</strong> se han encontrado <strong>'.$count.'</strong> subsidios';
+                                }
+                }
+
+
+
+
+
+            $resultados= $datoBP.'<!-- br/>Al día '.date('d/m/Y',time()).' para la BP <strong>'.$registro.'</strong> se han encontrado '.$count.' subsidio/s asignado/s.<br/ -->';
+            $resultados.= $table;
+            }
+
+        if($count>0){
+                return $form.$resultados.'<!--p class="leyendaSubsidios"><br>Ante problemas en la cuenta por favor dirijase a su sucursal bancaria a efectos de corroborar el estado de la misma y recuerde informar la situación al mail <a href="mailto:abenef@conabip.gov.ar">abenef@conabip.gov.ar</a> o telefónicamente al <b>0800-444-0068</b>.</p-->';
+
+        }
+        else {
+            return $form."<br><br>No se han encontrados subsidios para esta Biblioteca.";
+        }
+
+
+}

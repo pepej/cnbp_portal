@@ -1,0 +1,84 @@
+<?php 
+
+/*Hook Block Info*/
+function pagershare_block_info() {
+  // This example comes from node.module.
+  $blocks['pagershare'] = array(
+    'info' => t('Pager & Share'),
+  );
+
+  return $blocks;
+}
+
+/*Hook Block View*/
+function pagershare_block_view($delta = '') {
+
+  $block = array();
+
+  switch ($delta) {
+    case 'pagershare':
+      $block['subject'] = t('Pager & Sharing');
+      $block['content'] =  pagershare();
+      break;
+
+  }
+  return $block;
+}
+
+
+/*Render pagershare()*/
+
+function pagershare(){
+
+	$current_node= menu_get_object();
+	$typeStr = node_type_get_name(menu_get_object());
+	if($current_node){
+		if(in_array($current_node->type, array('article','programa_de_radio_bp','video_de_canal_bp','entrada_del_blog_de_la_bibliotec','experiencia','galer_a_de_fotos'))){
+			$prev_nid = db_query("SELECT nid FROM {node} WHERE type = :type AND created < :created  ORDER BY created DESC LIMIT 1", array(':created' => $current_node->created, ':type'=>$current_node->type))->fetchField();
+			$next_nid = db_query("SELECT nid FROM {node} WHERE type = :type AND created > :created  ORDER BY  created ASC LIMIT 1", array(':created' => $current_node->created, ':type'=>$current_node->type))->fetchField();
+
+            if($current_node->type=='experiencia'){
+                $prev_nid = db_query("SELECT entity_id as nid FROM {field_data_field_fechad_de_la_experiencia} WHERE entity_id != :nidActual AND entity_id <= :nidActual  ORDER BY  entity_id DESC LIMIT 1", array(':nidActual' => $current_node->nid))->fetchField();
+                $next_nid = db_query("SELECT entity_id as nid FROM {field_data_field_fechad_de_la_experiencia} WHERE entity_id != :nidActual AND entity_id >= :nidActual  ORDER BY  entity_id ASC LIMIT 1", array(':nidActual' => $current_node->nid))->fetchField();
+
+            }
+
+			if ($prev_nid > 0) {
+			  $prev_link = l('<span class="glyphicon glyphicon-chevron-left"></span> '.t('Anterior'), "node/$prev_nid",array('html'=>true,'attributes'=>array('id'=>'lnkPrev')));
+			}else {
+				$prev_link = '<span class="glyphicon glyphicon-chevron-left"></span> '.t('Anterior');
+			}
+
+			if ($next_nid > 0) {
+			  $next_link = l(t('Siguiente').' <span class="glyphicon glyphicon-chevron-right"></span>', "node/$next_nid",array('html'=>true,'attributes'=>array('id'=>'lnkNext')));
+			}else {
+				 $next_link = t('Siguiente').' <span class="glyphicon glyphicon-chevron-right"></span>';
+			}
+
+			if($current_node->type=='article'){
+				$allLink= l('Todas las noticias','noticias',array('attributes'=>array('id'=>'lnkAll')));
+			}
+			if($current_node->type=='programa_de_radio_bp'){
+				$allLink= l('Todos los programas','radio_bp',array('attributes'=>array('id'=>'lnkAll')));
+			}
+			if($current_node->type=='video_de_canal_bp'){
+				$allLink= l('Todos los videos','canal_bp',array('attributes'=>array('id'=>'lnkAll')));
+			}
+			if($current_node->type=='entrada_del_blog_de_la_bibliotec'){
+				$allLink= l('Todas las novedades de las Bibliotecas','bibliotecas/novedades-de-las-bibliotecas',array('attributes'=>array('id'=>'lnkAll')));
+			}
+
+			if($current_node->type=='experiencia'){
+				$allLink= l('Todas las experiencias las Bibliotecas','experiencias',array('attributes'=>array('id'=>'lnkAll')));
+			}
+			if($current_node->type=='galer_a_de_fotos'){
+				$allLink= l('Todas las galerías de fotos','fotos',array('attributes'=>array('id'=>'lnkAll')));
+			}
+			
+
+
+			return $prev_link.$allLink.$next_link;
+		}
+		
+	}
+}

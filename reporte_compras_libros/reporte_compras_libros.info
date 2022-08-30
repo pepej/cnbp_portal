@@ -1,0 +1,5 @@
+name = Reporte de compras de libros
+description = Herramienta para recolectar datos de compras de libros
+package = CNBP
+core = 7.x
+files[]= reporte_compras_libros.install

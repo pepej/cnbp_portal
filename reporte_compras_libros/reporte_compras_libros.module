@@ -1,0 +1,1388 @@
+<?php
+/**
+* Drupal Hook Menu
+*/
+function reporte_compras_libros_menu(){
+	$items = array();
+
+	$items['admin/config/reporte_compra_libros'] = array(
+		'title'				=> t('Reporte compra libros'),
+		'description' 		=> t('Configuracion del módulo de Reporte de compra de libros en eventos'),
+		'page callback' 	=> 'drupal_get_form',
+		'page arguments' 	=> array('reporte_compras_libros_settings'),
+		'access arguments'  => array('administrar configuracion reportes libros'),
+		'type'              => MENU_NORMAL_ITEM,
+		);
+	$items['admin/config/reporte_compra_libros/importar_db'] = array(
+		'title'				=> t('Importar Base de datos CAL'),
+		'description' 		=> t('Importa la base de libros'),
+		'page callback' 	=> 'drupal_get_form',
+		'page arguments' 	=> array('reporte_compras_libros_poblar_db_form'),
+		'access arguments'  => array('administrar configuracion reportes libros'),
+		'type'              => MENU_NORMAL_ITEM,
+		);
+		
+	$items['admin/config/reporte_compra_libros/reiniciar_usuario'] = array(
+		'title'				=> t('Re Abrir Carga a usuario'),
+		'description' 		=> t('Re Abrir Carga a usuario'),
+		'page callback' 	=> 'drupal_get_form',
+		'page arguments' 	=> array('reporte_compras_libros_reopen_form'),
+		'access arguments'  => array('administrar configuracion reportes libros'),
+		'type'              => MENU_NORMAL_ITEM,
+		);	
+
+	$items['admin/config/reporte_compra_libros/reenviar_email'] = array(
+		'title'				=> t('Reenviar email a usuario'),
+		'description' 		=> t('Reenviar email a usuario'),
+		'page callback' 	=> 'drupal_get_form',
+		'page arguments' 	=> array('reporte_compras_libros_reenviaremail_form'),
+		'access arguments'  => array('administrar configuracion reportes libros'),
+		'type'              => MENU_NORMAL_ITEM,
+		);	
+		
+	$items['admin/config/reporte_compra_libros/reporte'] = array(
+		'title'				=> t('Reporte libros adquiridos'),
+		'page callback' 	=> 'reporte_compras_libros_status_page',
+	//	'page arguments' 	=> array('reporte_compras_libros_reopen_form'),
+		'access arguments'  => array('administrar configuracion reportes libros'),
+		'type'              => MENU_NORMAL_ITEM,
+		);		
+
+	$items['reporte_compra_libros'] = array(
+		'title'				=> t('Reporte de compras libros'),
+		'description' 		=> t('Reporte de compras libros'),
+		'page callback' 	=> 'reporte_compra_libros_page',
+		//'page callback' 	=> 'drupal_get_form',
+		//'page arguments' 	=> array('reporte_compra_libros_form'),
+		'access arguments'  => array('completar reporte compras libros'),
+		'type'              => MENU_SUGGESTED_ITEM,
+		);
+	$items['reporte_compra_libros/add/%'] = array(
+		'title'				=> t('Reporte de compras libros'),
+		'description' 		=> t('Reporte de compras libros'),
+		'page callback' 	=> 'reporte_compra_libros_add_page',
+		//'page callback' 	=> 'drupal_get_form',
+		'page arguments' 	=> array(2),
+		'access arguments'  => array('completar reporte compras libros'),
+		'type'              => MENU_CALLBACK,
+		);
+	$items['reporte_compra_libros/delete/%'] = array(
+		'title'				=> t('Reporte de compras libros'),
+		'description' 		=> t('Reporte de compras libros'),
+		'page callback' 	=> 'reporte_compra_libros_delete_page',
+		//'page callback' 	=> 'drupal_get_form',
+		'page arguments' 	=> array(2),
+		'access arguments'  => array('completar reporte compras libros'),
+		'type'              => MENU_CALLBACK,
+		);
+	$items['reporte_compra_libros/final'] = array(
+		'title'				=> t('Final del Trámite'),
+		'page callback' 	=> 'reporte_compra_libros_final_page',
+		//'page callback' 	=> 'drupal_get_form',
+		//'page arguments' 	=> array('reporte_compra_libros_form'),
+		'access arguments'  => array('completar reporte compras libros'),
+		'type'              => MENU_CALLBACK,
+		);
+	$items['admin/reporte_compra_libros/newbook'] = array(
+		'title'				=> t('Agregar libro'),
+		'page callback' 	=> 'reporte_compras_libro_newbook',
+		//'page callback' 	=> 'drupal_get_form',
+		//'page arguments' 	=> array('reporte_compra_libros_form'),
+		'access arguments'  => array('completar reporte compras libros'),
+		'type'              => MENU_CALLBACK,
+		);
+
+	return $items;
+}
+
+
+/**
+* Implements Hook Permission
+*/
+function reporte_compras_libros_permission() {
+  return array(
+    'completar reporte compras libros' => array(
+      'title' => t('completar reporte compras libros'),
+      'description' => t('completar reporte compras libros.'),
+    ),
+
+    'administrar configuracion reportes libros' => array(
+      'title' => t('administrar configuracion reportes libros'),
+      'description' => t('administrar configuracion reportes libros'),
+    ),
+
+  );
+}
+
+
+function reporte_compras_libros_boot(){
+	global $user;
+	if (arg(0) == 'node' && arg(1)==455336 && empty(arg(2)) ) {
+		$result = db_query("SELECT * FROM {webform_submissions} w WHERE w.nid=:nid AND w.uid=:uid AND w.is_draft=0", array(':uid'=> $user->uid, ':nid'=>455336));
+		$redirect = false;
+		foreach ($result as $record) { 
+			if($record){
+				$redirect = true;
+			}
+		}
+		if($redirect){
+			header("Location: http://www.conabip.gob.ar/reporte_compra_libros");
+		}
+	}
+}
+
+
+function realizo_paso1(){
+    global $user;
+    $tieneResultados = false;
+    $result = db_query("SELECT * FROM {webform_submissions} w WHERE w.nid=:nid AND w.uid=:uid AND w.is_draft=0", array(':uid'=> $user->uid, ':nid'=>455336));
+
+    foreach ($result as $record) {
+        if($record){
+
+            $tieneResultados = true;
+        }
+    }
+
+    if($tieneResultados){
+        return true;
+    }
+    else {
+        return false;
+    }
+
+}
+
+
+/**/
+function get_user_paso1_submit(){
+    global $user;
+    $tieneResultados = false;
+    $result = db_query("SELECT * FROM {webform_submissions} w WHERE w.nid=:nid AND w.uid=:uid AND w.is_draft=0", array(':uid'=> $user->uid, ':nid'=>455336));
+    foreach ($result as $record) {
+        if($record){
+        	return $record;
+        }
+    }
+}
+
+
+
+
+
+function realizo_paso2(){
+    global $user;
+
+
+    //Prevent Duplicated emtries for same event
+    $actualTramite = variable_get('reporte_compras_evento_actual',array('Feria del Libro'));
+
+    $query = db_select('cnbp_reporte_compras_libros', 'report');
+    $query->condition('report.id_comprador', $user->uid, '=');
+    $query->condition('report.event', $actualTramite, '=');
+    $query->fields('report', array('id_libro'));
+
+    $result= $query->execute();
+
+    if($result->rowCount()>0){
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
+
+/**
+* Callback Function for Setting the Content Type for Books Catalog (See ct_libros.txt)
+*/
+function reporte_compras_libros_settings(){
+	
+	$form = array();
+
+	//Getting all CT available
+	$types = node_type_get_types();
+
+	foreach($types as $type){
+		$options[$type->type]= $type->name;
+	}
+
+	$fieldOptions = array_keys(field_info_instances('node', variable_get('reporte_compra_libros_ct_libro',array('page'))));
+	
+	foreach($fieldOptions as $key){
+		$fields[$key]=$key;
+	}
+
+	//Creating form
+	$form['reporte_compras_libros_type']= array(
+		'#type'=> 'select',
+		'#title' => t('Tipo de contenido para libros'),
+		'#options' => $options,
+		'#default_value' => variable_get('reporte_compra_libros_ct_libro',array('page')),
+		'#description' => t('Seleccionar el tipo de contenido apropiado'),
+		);
+
+	$form['reporte_compras_evento_actual']= array(
+		'#type'=> 'textfield',
+		'#size' => 60, 
+		'#maxlength' => 128, 
+		'#title' => t('Nombre del evento actual'),
+		'#default_value' => variable_get('reporte_compras_evento_actual',array('Feria del Libro')),
+
+		);
+
+	$confirmMsg = '
+Envío de la biblioteca {BP} el día {fecha}<br><br>
+
+La biblioteca ha completado correctamente la Encuesta de Participación y la Declaración de Libros Adquiridos del Programa Libro% 2022. <br><br>
+
+Los Libros adquiridos son en total {total_libros}:<br>
+{libros}
+<br><br>
+Solicitamos impriman el presente informe y, firmado por autoridades y sellado, lo remitan por correo postal a: <br><br>
+
+<b>CONABIP</b><br>
+Ayacucho 1578 <br>
+(C1112AAB),<br>
+Ciudad Autónoma de Buenos Aires. <br>
+Unida de Libro y Lectura<br>';
+
+	$form['reporte_compra_libros_confirm_title']= array(
+		'#type'=> 'textfield',
+		'#title' => t('Título del email de confirmación'),
+		'#default_value' => variable_get('reporte_compra_libros_confirm_title', 'Ha finalizado correctamente el trámite'),
+		);
+
+	$form['reporte_compra_libros_confirm_msg']= array(
+		'#type'=> 'textarea',
+		'#title' => t('Texto de la página de confirmación'),
+		'#description' => t('Patrones de reemplazo: {BP} para el nro de biblioteca, {fecha} para fecha y hora, {libros} y {total_libros} para los libros adquiridos'),
+		'#default_value' => variable_get('reporte_compra_libros_confirm_msg', $confirmMsg),
+
+		);
+
+	$form['reporte_compra_libros_email_msg']= array(
+		'#type'=> 'textarea',
+		'#title' => t('Texto del email confirmación'),
+		'#description' => t('Patrones de reemplazo: {BP} para el nro de biblioteca, {fecha} para fecha y hora, {libros} y {total_libros} para los libros adquiridos'),
+		'#default_value' => variable_get('reporte_compra_libros_email_msg', $confirmMsg),
+
+		);	
+	$form['reporte_compras_libros_field_isbn']= array(
+		'#type'=> 'select',
+		'#title' => t('Campo que contiene el ISBN'),
+		'#options' => $fields,
+		'#default_value' => variable_get('reporte_compras_libros_field_isbn',array('')),
+		);
+	$form['reporte_compras_libros_field_razonsocial']= array(
+		'#type'=> 'select',
+		'#title' => t('Campo que contiene la  razon social'),
+		'#options' => $fields,
+		'#default_value' => variable_get('reporte_compras_libros_field_razonsocial',array('')),
+		);
+	$form['reporte_compras_libros_field_sello']= array(
+		'#type'=> 'select',
+		'#title' => t('Campo que contiene el sello editorial'),
+		'#options' => $fields,
+		'#default_value' => variable_get('reporte_compras_libros_field_sello',array('')),
+		);
+
+	$form['reporte_compras_libros_field_autores']= array(
+		'#type'=> 'select',
+		'#title' => t('Campo que contiene el/los autores'),
+		'#options' => $fields,
+		'#default_value' => variable_get('reporte_compras_libros_field_autores',array('')),
+		);
+
+	$form['reporte_compras_libros_field_publico']= array(
+		'#type'=> 'select',
+		'#title' => t('Campo que contiene el tipo de publico'),
+		'#options' => $fields,
+		'#default_value' => variable_get('reporte_compras_libros_field_publico',array('')),
+		);
+
+	$form['reporte_compras_libros_field_edicion']= array(
+		'#type'=> 'select',
+		'#title' => t('Campo que contiene el nro de edición'),
+		'#options' => $fields,
+		'#default_value' => variable_get('reporte_compras_libros_field_edicion',array('')),
+		);
+
+
+
+
+	$form['#submit'][] = 'reporte_compras_libros_settings_submit';
+	//Output
+	return system_settings_form($form);
+}
+
+/**
+* Callback Functio for Saving the setting data
+*/
+function reporte_compras_libros_settings_submit($form, $form_state){
+	variable_set('reporte_compra_libros_ct_libro',$form_state['values']['reporte_compras_libros_type']);
+	variable_set('reporte_compra_libros_confirm_msg',$form_state['values']['reporte_compra_libros_confirm_msg']);
+	variable_set('reporte_compra_libros_email_msg',$form_state['values']['reporte_compra_libros_email_msg']);
+	variable_set('reporte_compras_libros_field_isbn',$form_state['values']['reporte_compras_libros_field_isbn']);
+	variable_set('reporte_compras_libros_field_razonsocial',$form_state['values']['reporte_compras_libros_field_razonsocial']);
+	variable_set('reporte_compras_libros_field_sello',$form_state['values']['reporte_compras_libros_field_sello']);
+	variable_set('reporte_compras_libros_field_autores',$form_state['values']['reporte_compras_libros_field_autores']);
+	variable_set('reporte_compras_libros_field_publico',$form_state['values']['reporte_compras_libros_field_publico']);
+	variable_set('reporte_compras_libros_field_edicion',$form_state['values']['reporte_compras_libros_field_edicion']);
+	variable_set('reporte_compras_evento_actual',$form_state['values']['reporte_compras_evento_actual']);
+}
+
+
+/**
+* Callback function for populate database
+*/
+function reporte_compras_libros_poblar_db_form($form, &$form_state){
+	unset($_SESSION['addingFromApp']);
+	
+	$form = array();
+
+  // We make a DIV which the progress bar can occupy. You can see this in use
+  // in ajax_example_progressbar_callback().
+
+	$form['status'] = array(
+		'#markup' => '<p>Primero hay que importar a la tabla "cnbp_base_libros_cal" el XLS de la CAL a la base de drupal respetando los campos propuestos.  La ejecucuón comenzará desde la fila nro '.$_SESSION['startQueryRange'].'. Para resetear este contador cierre la sessión y vuelva a iniciar. Luego ejecutar el siguiente comando:</p><div id="progress-status"></div>',
+		);
+
+	$form['submit'][] = array(
+		'#type' => 'button',
+		'#value' => t('Procesar datos en tabla para convertir a nodos Drupal'),
+		'#submit' => array('reporte_compras_libros_poblar_db_callback'),
+
+
+		);
+	;
+	if($_POST && $form_state['input']['form_build_id']){
+
+		reporte_compras_libros_poblar_db_callback();
+		return $form;
+		//exit();
+	}
+	else{
+		return $form;
+		//exit();
+	}
+}
+
+
+
+function reporte_compras_libros_poblar_db_callback() {
+
+	global $language;
+	global $user;
+	unset($_SESSION['addingFromApp']);
+	if(!isset($_SESSION['startQueryRange'])){
+		$_SESSION['startQueryRange']=0;
+	}
+	$step= 400;
+	$result = db_query("SELECT * FROM {cnbp_base_libros_cal} LIMIT ".$_SESSION['startQueryRange'].",".$step);
+	$i=0;
+	$lote=0;
+	$count=0;
+	$yaExisten=0;
+	
+	if ($result) {
+		$_SESSION['startQueryRange']=$_SESSION['startQueryRange']+$step;
+		while ($row = $result->fetchAssoc()) {
+
+    	//Creating the nodes
+			if(noExiste($row['isbn'])){
+			$i++;
+			$lote++;
+			//if($i<2){
+				    		
+				$nodo 																= new stdClass();
+				$nodo->type 														= variable_get('reporte_compra_libros_ct_libro');
+				$nodo->uid  														= $user->uid;
+				$nodo->language    													= $language->language;
+				$nodo->title 														=  $row['title'];
+				$nodo->{variable_get('reporte_compras_libros_field_autores')} 		=  _hField($row['autor']);
+				$nodo->{variable_get('reporte_compras_libros_field_isbn')} 		=  _hField(preg_replace('/[^0-9.]/', '', $row['isbn']));
+				$nodo->{variable_get('reporte_compras_libros_field_sello')} 		=  _hField($row['sello']);
+				$nodo->{variable_get('reporte_compras_libros_field_razonsocial')} 	=  _hField($row['razon_social']);
+				$nodo->{variable_get('reporte_compras_libros_field_edicion')} 		=  _hField((int)$row['edicion']);
+				$nodo->{variable_get('reporte_compras_libros_field_publico')} 		=  _hField($row['tipo_publico']);
+				$nodo->is_new														=true;
+				print_r($nodo);
+				
+				if($row['title'] && $row['isbn']){
+					
+					node_object_prepare($nodo);
+					node_save($nodo);
+					
+				}
+
+				
+				
+			//}
+			}	
+			else {
+
+				$yaExisten++;
+			}	
+
+
+		}
+    //Empty table for prevent duplicates
+
+
+    //Messages
+		drupal_set_message("Se agregaron ".$count." nuevos libros. Ya existian ".$yaExisten." libros que no se agregaron en este import");
+		//$truncate=db_truncate("cnbp_base_libros_cal")->execute();
+		//drupal_set_message("Se vacio la tabla de soporte para prevenir duplicados");
+		//exit();
+	}
+	else {
+		drupal_set_message("No se agregaron libros, la tabla de origen está vacia.", "error");
+	}
+	
+}
+
+
+
+
+
+/**
+* Callback page for book selection
+*/
+
+function reporte_compra_libros_page(){
+
+    //Prevent start proccess without paso1
+    if(!realizo_paso1()){
+        drupal_goto('node/455336');
+    }
+
+
+
+	// Prevent second summision
+	reporte_compra_libros_prevent_twice();
+
+	// Getting the page
+	$form = drupal_render(drupal_get_form('reporte_compra_libros_form'));  
+
+	if(strlen($_POST['string'])>3){
+		
+		//print $_POST['medio']; die();
+		$query = db_select('node', 'n'); 
+		$query->condition('n.type',variable_get('reporte_compra_libros_ct_libro')); 
+		$query->join('field_data_'.variable_get('reporte_compras_libros_field_isbn'), 'isbn', 'isbn.entity_id = n.nid');
+		$query->join('field_data_'.variable_get('reporte_compras_libros_field_autores'), 'autor', 'autor.entity_id = n.nid');
+
+		if($_POST['medio']=='Titulo') {
+			$query->condition('n.title','%'.db_like($_POST['string']).'%','LIKE');
+		}
+		
+		if($_POST['medio']=='ISBN') {
+
+			$isbn=preg_replace('/[^0-9.]/', '', $_POST['string']);
+			
+			$query->condition('isbn.'.variable_get('reporte_compras_libros_field_isbn').'_value','%'.db_like($isbn).'%','LIKE');
+		}
+		if($_POST['medio']=='Apellido del Autor') {
+		
+			$query->condition('autor.'.variable_get('reporte_compras_libros_field_autores').'_value','%'.db_like($_POST['string']).'%','LIKE');
+
+		}
+
+
+		$query->fields('n', array('nid')) 
+
+		 // ->fields('u', array('name')) //get these fields from the users table
+		  ->condition('n.status', 1); //only published nodes, the n in n.status is needed
+
+		  //print_r($query);
+		$result = $query->execute();
+		$plural='s';
+		if($result->rowCount()>0){
+			if($result->rowCount()==1){$plural='';}
+			$i=0;
+			$resultados='<h2>Se encontraron '.$result->rowCount().' resultado'.$plural.' de búsqueda para el '.$_POST['medio'].' <b>"'.$_POST['string'].'"</b></h2>';
+		
+			$rows = array();
+			foreach($result as $nodo){
+				$nodo = node_load($nodo->nid);
+				
+				$i++;
+				$rows[$i]['Título']=$nodo->title;
+				$rows[$i]['Autor']=$nodo->{variable_get('reporte_compras_libros_field_autores')}['und'][0]['value'];
+				$rows[$i]['Edicion']=$nodo->{variable_get('reporte_compras_libros_field_edicion')}['und'][0]['value'];
+				$rows[$i]['Editorial']=$nodo->{variable_get('reporte_compras_libros_field_sello')}['und'][0]['value'];
+				$rows[$i]['ISBN']=$nodo->{variable_get('reporte_compras_libros_field_isbn')}['und'][0]['value'];
+				$rows[$i]['Link']= l('Agregar','reporte_compra_libros/add/'.$nodo->nid, array('attributes'=> array('class'=>'btn btn-sm btn-success')));
+			}
+			$resultados.=theme('table', array(
+    			'header' => array('Libro','Autor/es','Edicion','Editorial', 'ISBN','Agregar'), 
+    			'rows' => $rows,
+    			'attributes' => array('width' => '100%')
+			));
+			$resultados.='<p>Si no encontró el título buscado, puede '.l('ingresar el libro manualmente','admin/reporte_compra_libros/newbook').'.</p>';
+		}
+		else {
+			$resultados='<h2 style="font-size:35px; color:redirect">No se encontraron resultados buscando el '.$_POST['medio'].' <b>"'.$_POST['string'].'"</b></h2><p>Puede '.l('ingresar el libro manualmente','admin/reporte_compra_libros/newbook').'.</p>';
+		}
+
+	}
+	
+
+	if($_POST && $_POST['medio'] && strlen($_POST['string'])<=3){ drupal_set_message("Completar la búsqueda con mínimo 4 letras", 'error');}
+	
+	return 'Recuerde que antes de enviar la encuesta deberá cargar todos los libros comprados, ya que el sistema no contempla la guarda de datos para seguir cargando si usted cierra la sesion<br><br>'.$form.$resultados.'<div id="reporteResume">'.reporte_compra_libros_resume_books().'</div>';
+}
+
+function reporte_compra_libros_form($form , &$form_state){
+
+
+	$form['buscador']=array(
+		'#type' => 'fieldset', 
+		'#title' => t('Agregar un Libro'), 
+		'#weight' => 3, 
+		'#collapsible' => TRUE, 
+		'#collapsed' => FALSE,
+	);
+	$form['buscador']['string']= array(
+		'#type'			=> 'textfield',
+		'#size' 		=> 60, 
+		'#maxlength' 	=> 128, 
+		'#title' 		=> t('Buscar'),
+		'#required'		=> true,
+		'#default_value' => $form['string'],
+
+		);
+	$form['buscador']['medio']= array(
+		'#type'			=> 'radios',
+		'#options'		=> drupal_map_assoc(array('Titulo','Apellido del Autor', 'ISBN')),
+		'#title' 		=> t('Buscar por'),
+		'#default_value' => 'Titulo'
+		//'#default_value' => '',
+
+		);
+	
+	$form['buscador']['search'] = array(
+		'#type' 	=> 'submit',
+		'#value' 	=> t('Buscar'),
+		'#submit' 	=> array('reporte_compra_libros_form_submit'),
+
+
+		);
+	
+	$form['#submit'][] = 'reporte_compra_libros_form_submit';
+	
+
+	return  $form;
+}
+
+
+function reporte_compra_libros_form_submit($form , &$form_state){
+	
+	//Prevent second summision
+	reporte_compra_libros_prevent_twice();
+
+	$form_state['rebuild'] = TRUE;	
+}
+
+
+
+/*Re abrir encuesta*/
+function reporte_compras_libros_reopen_form($form , &$form_state){
+
+	if($_POST['uid_to_delete']){
+		$query=db_select('cnbp_reporte_compras_libros','reporte');
+		$query->condition('reporte.id_comprador', $_POST['uid_to_delete'],'=');
+		$query->condition('reporte.event', variable_get('reporte_compras_evento_actual'),'=');
+		$query->fields('reporte',array('id_libro'));
+		$result= $query->execute();
+		if($result->rowCount()>0){ 
+			$datosPasados= '( '.$result->rowCount().' registros ) ';
+			//Generar variable en memoria
+			foreach($result as $libro){
+				$librosADBVar[]=$libro->id_libro;
+			}
+			variable_set(reporte_compra_libros_personal_db_store_temp_name($_POST['uid_to_delete']), $librosADBVar);
+			
+			//Eliminar datos del reporte
+			$delete= db_delete('cnbp_reporte_compras_libros')
+			->condition('event', variable_get('reporte_compras_evento_actual'),'=')
+			->condition('id_comprador', $_POST['uid_to_delete'],'=')
+			->execute();
+			
+			//Mostrar msg
+			drupal_set_message("Se ha abierto la carga de libros para el usuario ingresado. Los datos que estaban en el reporte ".$datosPasados."fueron quitados y enviados disponibilidad del usuario para que pueda seguir cargando. Informar al usuario que cierre la session, la vuelva a abrir e ingrese a www.conabip.gob.ar/reporte_compra_libros para continuar el trámite.");	
+		}else {
+			drupal_set_message("El ID ingresado no ha tiene libros declarados", 'error');
+		}
+		
+		
+	}
+
+	$form['uid_to_delete']= array(
+		'#type'			=> 'textfield',
+		'#size' 		=> 60, 
+		'#maxlength' 	=> 128, 
+		'#title' 		=> t('UID: Ingresar el ID del usuario Drupal a re-abrir carga. IMPORTANTE: Usar esta funcionalidad con cuidado ya que elimina los datos cargados por el usuario.'),
+		'#required'		=> true,
+		'#default_value' => $form['uid'],
+
+		);
+
+	
+//	$form['#submit']= 'reporte_compras_libros_reopen_form_submit';
+	$form['submit'][] = array(
+		'#type' => 'button',
+		'#value' => t('Abrir carga de datos para el ID de usuario'),
+		'#submit' => array('reporte_compras_libros_reopen_form_submit'),
+
+
+		);
+	
+
+	return  $form;
+}
+
+
+
+/*Re abrir encuesta*/
+function reporte_compras_libros_reenviaremail_form($form , &$form_state){
+
+	if($_POST['uid_to_mail']){
+		//print reporte_compra_libros_get_final_msg($_POST['uid_to_mail']);
+		$usuario = user_load(array($_POST['uid_to_mail']));
+		$mailMsg =  reporte_compra_libros_get_final_email($_POST['uid_to_mail']);
+		$headers = "MIME-Version: 1.0" . "\r\n";
+		$headers.= "Content-type:text/html;charset=UTF-8" . "\r\n";
+		$headers.= 'From: CONABIP <libroporciento@conabip.gob.ar>' . "\r\n";
+		mail($usuario->mail,variable_get('reporte_compra_libros_confirm_title', 'DELARACIÓN DE LIBROS ADQUIRIDOS - PROGRAMA LIBRO%'),$mailMsg,$headers);
+
+		drupal_set_message("Se envió el email a ".$usuario->mail, 'status');
+		if($_POST['uid_to_mail_cc']){
+			mail($_POST['uid_to_mail_cc'],variable_get('reporte_compra_libros_confirm_title', 'DELARACIÓN DE LIBROS ADQUIRIDOS - PROGRAMA LIBRO%'),$mailMsg,$headers);
+
+				drupal_set_message("Se envió  copia a  ".$_POST['uid_to_mail_cc'], 'status');
+		}		
+	}
+
+	$form['uid_to_mail']= array(
+		'#type'			=> 'textfield',
+		'#size' 		=> 60, 
+		'#maxlength' 	=> 128, 
+		'#title' 		=> t('UID: Ingresar el ID del usuario Drupal a re-enviar el email del paso#2.'),
+		'#required'		=> true,
+		'#default_value' => $form['uid'],
+
+		);
+	$form['uid_to_mail_cc']= array(
+		'#type'			=> 'textfield',
+		'#size' 		=> 128, 
+		'#maxlength' 	=> 260, 
+		'#title' 		=> t('Adicionalmente puede agregar un email extra. NO olvidar el @.'),
+		'#required'		=> true,
+		'#default_value' => $form['uid'],
+
+		);
+
+	
+
+	
+//	$form['#submit']= 'reporte_compras_libros_reopen_form_submit';
+	$form['submit'][] = array(
+		'#type' => 'button',
+		'#value' => t('Reenviar email'),
+		'#submit' => array('reporte_compras_libros_reenviaremail_form_submit'),
+
+
+		);
+	
+
+	return  $form;
+}
+
+function reporte_compras_libros_reopen_form_submit($form , &$form_state){
+	//$form_state['rebuild'] = TRUE;
+
+}
+
+function reporte_compras_libros_reenviaremail_form_submit($form , &$form_state){
+
+}
+/**
+* Manage Cart
+*/
+function reporte_compra_libros_add_page($nid){
+	global $user;
+	$_SESSION['misLibros'][]=$nid;
+	drupal_goto('reporte_compra_libros');
+}
+
+function reporte_compra_libros_delete_page($key){
+	unset($_SESSION['misLibros'][$key]);
+	drupal_goto('reporte_compra_libros');
+}
+
+
+function reporte_compra_libros_resume_form() {
+//	print "Session:";
+//	print_r($_SESSION['misLibros']);
+//	print '<hr>';
+//	print "DB:";
+//  print_r(variable_get(reporte_compra_libros_personal_db_store_temp_name()));
+	if(@count($_SESSION['misLibros'])>0){
+		variable_set(reporte_compra_libros_personal_db_store_temp_name(), $_SESSION['misLibros']);
+	}
+	if(@count($_SESSION['misLibros'])==0 && @count(variable_get(reporte_compra_libros_personal_db_store_temp_name(),array())>0)){
+			//print "La variable de session no existe, obtengo los valores de la variable temporal<hr>";
+			$_SESSION['misLibros']=variable_get(reporte_compra_libros_personal_db_store_temp_name(),array());
+			//print_r($_SESSION['misLibros']);
+	}
+	$keys=array_keys($_SESSION['misLibros']);
+	
+	$i=0;
+	foreach($keys as $key){
+				
+				$nodo = node_load($_SESSION['misLibros'][$key]);
+				
+				$i++;
+				$rows[$i]['Título']=$nodo->title;
+				$rows[$i]['Autor']=$nodo->{variable_get('reporte_compras_libros_field_autores')}['und'][0]['value'];
+				$rows[$i]['Edicion']=$nodo->{variable_get('reporte_compras_libros_field_edicion')}['und'][0]['value'];
+				$rows[$i]['Editorial']=$nodo->{variable_get('reporte_compras_libros_field_sello')}['und'][0]['value'];
+				$rows[$i]['ISBN']=$nodo->{variable_get('reporte_compras_libros_field_isbn')}['und'][0]['value'];
+				$rows[$i]['Link']= l('Eliminar','reporte_compra_libros/delete/'.$key, array('attributes'=> array('class'=>'btn btn-sm btn-danger')));
+			}
+			
+
+			$resultados.=theme('table', array(
+    			'header' => array('Libro','Autor/es','Edicion','Editorial', 'ISBN','Agregar'), 
+    			'rows' => $rows,
+    			'attributes' => array('width' => '100%')
+			));
+
+	
+
+	 if(@count($_SESSION['misLibros'])>0){
+
+	 	$form['carro']=array(
+		'#type' => 'fieldset', 
+		'#title' => t('Total Libros Declarados: ').count($_SESSION['misLibros']).' <button style="position:absolute; right:30px" class="btn btn-xs btn-default"><span class="glyphicon glyphicon-book"></span>  Ver Libros Declarados</button>', 
+		'#collapsible' => TRUE, 
+		'#collapsed' => TRUE,
+	);
+
+	 $form['carro']['from'] = array(
+	 	'#type'=> 'item',
+	 	//'#title'=> t('From'),
+	 	'#markup'=> $resultados,
+
+  );
+	 	$form['enviar'] = array(
+		'#type' => 'submit',
+		'#value' => t('He finalizado el trámite de declaración de libros. Enviar el trámite.'),
+		//'#submit' => array('node_form_delete_submit'),
+		'#attributes' => array (
+            'onclick' => 'javascript:if (confirm("Si ya ha declarado todos los libros adquirido presione Aceptar. Si aún le resta algún libro por declarar presione Cancelar y continúe cargando libros. ")) { return true;} else { return false;} ',
+        )
+   );
+	 }
+
+	return $form;
+}
+
+
+function reporte_compra_libros_resume_books() {	
+	return drupal_render(drupal_get_form('reporte_compra_libros_resume_form')).'<hr>';
+}
+
+
+/*
+* Saving Book Data and Sending Mail
+*/
+function reporte_compra_libros_resume_form_submit() {
+	global $user;
+	//Saving Data
+	foreach($_SESSION['misLibros'] as $key){
+		$record= db_insert('cnbp_reporte_compras_libros') 
+		->fields(array(
+  			'id_libro' => $key,
+  			'id_comprador' => $user->uid,
+  			'event' => variable_get('reporte_compras_evento_actual',array('Feria del Libro')),
+  			'date'	=> REQUEST_TIME,
+		))->execute();
+	}
+
+	//Messages
+	$mailMsg = reporte_compra_libros_get_final_email();
+
+	//Enviar email
+	// Always set content-type when sending HTML email
+	$headers = "MIME-Version: 1.0" . "\r\n";
+	$headers.= "Content-type:text/html;charset=UTF-8" . "\r\n";
+	$headers.= 'From: CONABIP <libroporciento@conabip.gob.ar>' . "\r\n";
+	mail($user->mail,variable_get('reporte_compra_libros_confirm_title', 'DELARACIÓN DE LIBROS ADQUIRIDOS - PROGRAMA LIBRO%'),$mailMsg,$headers);
+
+	drupal_set_message(t('Ha finalizado exitosamente el trámite. Se le ha enviado una copia de este formulario a su e-mail ('.$user->mail.').'));
+
+	//Unset the session
+	unset($_SESSION['misLibros']);
+	variable_del(reporte_compra_libros_personal_db_store_temp_name());
+
+	//Redirect to final page
+	drupal_goto('reporte_compra_libros/final');
+	
+
+
+}
+
+
+
+function reporte_compra_libros_final_page(){
+
+
+    //Prevent start proccess without paso1 o 2
+    if(!realizo_paso1()){
+        drupal_goto('node/455336');
+    }
+    if(!realizo_paso2()){
+        drupal_goto('reporte_compra_libros');
+    }
+
+
+    //Out
+
+    
+
+	$msg = reporte_compra_libros_get_final_msg();
+	return $msg;
+}
+
+
+function reporte_compra_libros_get_final_msg($uid=null){
+	if(empty($uid)){global $user;$user=user_load($user->uid);}
+	else {
+		$user=user_load($uid);
+	}
+	
+	$msg = variable_get('reporte_compra_libros_confirm_msg','Configurar Mensaje');
+	$bp = '<b>(Registro Nro: '.$user->field_n_mero_de_registro['und'][0]['value'].')</b>';
+	
+
+	$i=0;
+	$keys = array_keys($_SESSION['misLibros']);
+	
+	$actualTramite = variable_get('reporte_compras_evento_actual',array('Feria del Libro'));
+
+	$query = db_select('cnbp_reporte_compras_libros', 'report');
+	$query->condition('report.id_comprador', $user->uid, '=');
+	$query->condition('report.event', $actualTramite, '=');
+	$query->fields('report', array('id_libro','date'));
+	
+	$result= $query->execute();
+
+	foreach($result as $key){
+				
+				$nodo = node_load($key->id_libro);
+				
+				$i++;
+				$rows[$i]['Título']=$nodo->title;
+				$rows[$i]['Autor']=$nodo->{variable_get('reporte_compras_libros_field_autores')}['und'][0]['value'];
+				$rows[$i]['Edicion']=$nodo->{variable_get('reporte_compras_libros_field_edicion')}['und'][0]['value'];
+				$rows[$i]['Editorial']=$nodo->{variable_get('reporte_compras_libros_field_sello')}['und'][0]['value'];
+				$rows[$i]['ISBN']=$nodo->{variable_get('reporte_compras_libros_field_isbn')}['und'][0]['value'];
+				//$rows[$i]['Link']= l('Eliminar','reporte_compra_libros/delete/'.$key, array('attributes'=> array('class'=>'btn btn-sm btn-danger')));
+
+				$fecha = '<b>'.date('d/m/Y H:i', $key->date).'</b>';
+			}
+			
+
+			$libros.='<hr>'.theme('table', array(
+    			'header' => array('Libro','Autor/es','Edicion','Editorial', 'ISBN'), 
+    			'rows' => $rows,
+    			'attributes' => array('width' => '100%')
+			)).'<hr>';
+
+	$msg=str_replace('{BP}', $bp, $msg);
+	$msg=str_replace('{fecha}', $fecha, $msg);
+	$msg=str_replace('{libros}', $libros, $msg);
+	$msg=str_replace('{total_libros}', '<b>'.$i.'</b>', $msg);
+
+	return $msg;
+}
+
+function reporte_compra_libros_get_final_email($uid=null){
+	if(empty($uid)){global $user;$user=user_load($user->uid);}
+	else {
+		$user=user_load($uid);
+	}
+	
+	$msg = variable_get('reporte_compra_libros_email_msg','Configurar Mensaje');
+	$bp = '<b>(Registro Nro: '.$user->field_n_mero_de_registro['und'][0]['value'].')</b>';
+	
+
+	$i=0;
+	$keys = array_keys($_SESSION['misLibros']);
+	
+	$actualTramite = variable_get('reporte_compras_evento_actual',array('Feria del Libro'));
+
+	$query = db_select('cnbp_reporte_compras_libros', 'report');
+	$query->condition('report.id_comprador', $user->uid, '=');
+	$query->condition('report.event', $actualTramite, '=');
+	$query->fields('report', array('id_libro','date'));
+	
+	$result= $query->execute();
+
+	foreach($result as $key){
+				
+				$nodo = node_load($key->id_libro);
+				
+				$i++;
+				$rows[$i]['Título']=$nodo->title;
+				$rows[$i]['Autor']=$nodo->{variable_get('reporte_compras_libros_field_autores')}['und'][0]['value'];
+				$rows[$i]['Edicion']=$nodo->{variable_get('reporte_compras_libros_field_edicion')}['und'][0]['value'];
+				$rows[$i]['Editorial']=$nodo->{variable_get('reporte_compras_libros_field_sello')}['und'][0]['value'];
+				$rows[$i]['ISBN']=$nodo->{variable_get('reporte_compras_libros_field_isbn')}['und'][0]['value'];
+				//$rows[$i]['Link']= l('Eliminar','reporte_compra_libros/delete/'.$key, array('attributes'=> array('class'=>'btn btn-sm btn-danger')));
+
+				$fecha = '<b>'.date('d/m/Y H:i', $key->date).'</b>';
+			}
+			
+
+			$libros.='<hr>'.theme('table', array(
+    			'header' => array('Libro','Autor/es','Edicion','Editorial', 'ISBN'), 
+    			'rows' => $rows,
+    			'attributes' => array('width' => '100%')
+			)).'<hr>';
+
+	$msg=str_replace('{BP}', $bp, $msg);
+	$msg=str_replace('{fecha}', $fecha, $msg);
+	$msg=str_replace('{libros}', $libros, $msg);
+	$msg=str_replace('{total_libros}', '<b>'.$i.'</b>', $msg);
+
+	return $msg;
+}
+
+
+//prevent repeat
+function reporte_compra_libros_prevent_twice(){
+	global $user;
+	//Prevent Anonymous Users
+	if($user->uid==0){
+		drupal_set_message("Debe ingresar al portal para efectuar el trámite", 'error');
+		drupal_goto("/");
+	}
+
+	//Prevent Duplicated emtries for same event
+	$actualTramite = variable_get('reporte_compras_evento_actual',array('Feria del Libro'));
+
+	$query = db_select('cnbp_reporte_compras_libros', 'report');
+	$query->condition('report.id_comprador', $user->uid, '=');
+	$query->condition('report.event', $actualTramite, '=');
+	$query->fields('report', array('id_libro'));
+	
+	$result= $query->execute();
+
+	if($result->rowCount()>0){
+		drupal_set_message("Usted ya ha completado el trámite. No tiene que volver a hacerlo hasta la próxima fecha");
+		drupal_goto('reporte_compra_libros/final');
+	}
+
+
+}
+
+
+
+
+//TODO: Redirect luego de agregar un nuevo libro
+
+function reporte_compras_libros_node_insert($node) {
+  switch ($node->type) {
+    case variable_get('reporte_compra_libros_ct_libro',array('page')):
+    if(isset($_SESSION['addingFromApp'])){
+    	drupal_set_message(t('Se ha agregado el libro a su declaración, si necesita incluirlo nuevamente puede usar el buscador para encontrarlo.'), 'status');				
+     	drupal_goto('reporte_compra_libros/add/'.$node->nid);
+     	unset($_SESSION['addingFromApp']);
+     	break;
+    }	
+     
+  }
+}
+
+
+function reporte_compras_libro_newbook(){
+	$_SESSION['addingFromApp']=1;	
+	$ct= str_replace('_','-',variable_get('reporte_compra_libros_ct_libro'));
+	drupal_goto('node/add/'.$ct);
+
+}
+
+function reporte_compras_libros_paths() {
+  $paths = array(
+    'admin/reporte_compra_libros/newbook' => TRUE,
+  );
+  return $paths;
+}
+
+
+function noExiste($isbn){
+	$isbn = preg_replace('/[^0-9.]/', '',$isbn);
+	$result = db_query("SELECT isbn FROM (SELECT REPLACE({field_isbn_value}, '-','') AS isbn FROM field_data_field_isbn ) AS isbn WHERE isbn= :s",array(':s'=>$isbn));
+	//print $result->rowCount();
+	if($result->rowCount()==0) {
+		return true;
+		//print "No Existe ".$result->rowCount();
+		
+	}
+	else {
+		return false;
+		//print "Existe ".$result->rowCount();
+	}	
+}
+
+//Formating fields
+
+function _hField($value) {
+
+	$field = array(
+		'und'=> array(
+			0 => array (
+				'value' => $value,
+				'safe' => $value,
+				),
+			)
+		);
+
+
+
+	return $field;
+
+}
+
+
+
+/*Get the db temp store var name*/
+function reporte_compra_libros_personal_db_store_temp_name($ui=null){
+		
+		
+		if(!isset($ui)){
+			global $user;
+			$ui = $user->uid;
+		}
+		$dbVariableName='ReporteCompra_User_'.$ui.'_'.str_replace(' ','_',variable_get('reporte_compras_evento_actual'));
+		return $dbVariableName;
+}
+
+
+
+
+/**
+ * Status Page 
+*/
+function reporte_compras_libros_status_page(){
+	
+	drupal_add_js("https://www.gstatic.com/charts/loader.js");
+	
+	//Qty users
+	$query=db_select('cnbp_reporte_compras_libros','reporte');
+	$query->condition('reporte.event', variable_get('reporte_compras_evento_actual'),'=');
+	$query->distinct();
+	$query->fields('reporte',array('id_comprador'));
+	$result= $query->execute();
+	
+	if($result->rowCount()>0){ 
+		$data[]=array('<h2>Bibliotecas que completaron el trámite</h2>');
+		$data[]=array('<h3>'.$result->rowCount().'</h3>');
+		$qtyUsers=$result->rowCount();
+	}
+	
+	
+	
+	//Qty Ejemplares
+	$query=db_select('cnbp_reporte_compras_libros','reporte');
+	$query->condition('reporte.event', variable_get('reporte_compras_evento_actual'),'=');
+	$query->fields('reporte',array('id_libro'));
+	$result= $query->execute();
+	if($result->rowCount()>0){ 
+		$data[]=array('<h2>Total de ejemplares reportados</h2>');
+		$data[]=array( '<h3>'.$result->rowCount().'</h3>');
+		$qtyLibros=$result->rowCount();
+	}
+	
+	
+	//Qty libros
+	$query=db_select('cnbp_reporte_compras_libros','reporte');
+	$query->condition('reporte.event', variable_get('reporte_compras_evento_actual'),'=');
+	$query->distinct();
+	$query->fields('reporte',array('id_libro'));
+	$result= $query->execute();
+	if($result->rowCount()>0){ 
+		$data[]=array('<h2>Títulos diferentes reportados</h2>');
+		$data[]=array('<h3>'.$result->rowCount().'</h3>');
+	}
+	
+	
+	//Prom Libros/BP
+	if($qtyLibros && $qtyUsers){
+		$data[]=array('<h2>Promedio de adquiridos cada biblioteca</h2>');
+		$data[]=array('<h3>'.intval($qtyLibros/$qtyUsers).'</h3>');
+	}
+	
+	
+	//Bps Mas libros
+	$query=db_select('cnbp_reporte_compras_libros','reporte');
+	$query->condition('reporte.event', variable_get('reporte_compras_evento_actual'),'=');
+	$query->fields('reporte',array('id_comprador'));
+	$query->addExpression('COUNT(id_libro)', 'suma');	
+	$query->groupBy('id_comprador');
+	$query->orderBy('suma', 'DESC');
+	$query->range(0, 100);
+	$result= $query->execute();
+	if($result->rowCount()>0){ 
+		$puesto=0;
+		foreach($result as $bp){
+			$puesto++;
+			$dataBp=user_load(array('uid'=>$bp->id_comprador));
+			//print_r();
+			$bps[]=array($puesto, l($dataBp->name.' | '.$dataBp->field_nombre_de_la_biblioteca['und'][0]['value'] , 'user/'.$dataBp->uid),$dataBp->field_direcci_n['und'][0]['province'], $bp->suma);
+		}
+		$bpsMasCompraron= theme('table', array(
+    			'header' => array('Puesto','Biblioteca','Provincia', 'Cantidad de Libros'), 
+    			'rows' => $bps,
+    		//	'attributes' => array('width' => '100%')
+			));
+		$data[]=array('<h2>Bibliotecas que más libros compraron</h2>');
+		$data[]=array($bpsMasCompraron);
+		
+	}
+	
+	
+	//Distribucion Libros x Provincia
+	$query=db_select('cnbp_reporte_compras_libros','reporte');
+	$query->condition('reporte.event', variable_get('reporte_compras_evento_actual'),'=');
+	$query->fields('reporte',array('id_comprador'));
+	$query->addExpression('COUNT(id_libro)', 'suma');	
+	$query->groupBy('id_comprador');
+	$query->orderBy('suma', 'DESC');
+	//$query->range(0, 20);
+	$result= $query->execute();
+	if($result->rowCount()>0){ 
+		$puesto=0;
+		foreach($result as $bp){
+			$puesto++;
+			$dataBp=user_load(array('uid'=>$bp->id_comprador));
+			//print_r();
+			if($dataBp->field_direcci_n['und'][0]['province']==""){$dataBp->field_direcci_n['und'][0]['province']="Sin definir";}
+			if(isset($provincia[$dataBp->field_direcci_n['und'][0]['province']])){
+				$provincia[$dataBp->field_direcci_n['und'][0]['province']]=array('name'=>$dataBp->field_direcci_n['und'][0]['province'], 'suma'=> $provincia[$dataBp->field_direcci_n['und'][0]['province']]['suma']+$bp->suma);
+			}
+			else {
+				$provincia[$dataBp->field_direcci_n['und'][0]['province']]=array('name'=>$dataBp->field_direcci_n['und'][0]['province'], 'suma'=>$bp->suma);
+			}
+			
+		}
+		foreach($provincia as $prov){
+			$provJsonArray[]="['".$prov['name']."', ".$prov['suma']."]";
+		}
+		
+		$pieChart= "<script type=\"text/javascript\">
+      google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(drawChart);
+      function drawChart() {
+
+        var data = google.visualization.arrayToDataTable([
+          ['Provincia', 'Cantidad de Libros'],
+         ".implode(',',$provJsonArray)."
+        ]);
+
+        var options = {
+          title: 'Libros adquiridos por  provincia'
+        };
+
+        var chart = new google.visualization.PieChart(document.getElementById('comprasProvincia'));
+
+        chart.draw(data, options);
+      }
+    </script>
+    <div id=\"comprasProvincia\" style=\"height:1200px\"></div>
+    ";
+		$data[]=array('<h2>Distribución de compras por provincia</h2>');
+		$data[]=array($pieChart);
+		
+	}
+	
+	//Distribucion  x Ciudades
+	unset($provincia);
+	$total=0;
+	$query=db_select('cnbp_reporte_compras_libros','reporte');
+	$query->condition('reporte.event', variable_get('reporte_compras_evento_actual'),'=');
+	$query->fields('reporte',array('id_comprador'));
+	$query->addExpression('COUNT(id_libro)', 'suma');	
+	$query->groupBy('id_comprador');
+	$query->orderBy('suma', 'DESC');
+	//$query->range(0, 20);
+	$result= $query->execute();
+	if($result->rowCount()>0){ 
+		$puesto=0;
+		foreach($result as $bp){
+			$puesto++;
+			$dataBp=user_load(array('uid'=>$bp->id_comprador));
+			//print_r();
+			if($dataBp->field_direcci_n['und'][0]['city']==""){$dataBp->field_direcci_n['und'][0]['city']="Sin definir"; $dataBp->field_direcci_n['und'][0]['province']="-";}
+			if(isset($provincia[$dataBp->field_direcci_n['und'][0]['city']])){
+				$provincia[$dataBp->field_direcci_n['und'][0]['city']]=array('name'=>$dataBp->field_direcci_n['und'][0]['city'], 'provincia'=>$dataBp->field_direcci_n['und'][0]['province'], 'suma'=> $provincia[$dataBp->field_direcci_n['und'][0]['city']]['suma']+$bp->suma);
+			}
+			else {
+				$provincia[$dataBp->field_direcci_n['und'][0]['city']]=array('name'=>$dataBp->field_direcci_n['und'][0]['city'], 'provincia'=>$dataBp->field_direcci_n['und'][0]['province'], 'suma'=>$bp->suma);
+			}
+		
+			
+		}
+		
+		usort($provincia, 'cmp');
+		
+		foreach(array_reverse($provincia) as $prov){
+			$out[]=array($prov['name'],$prov['provincia'],$prov['suma']);
+		}
+		
+	
+    
+    
+    	$Ciudades= theme('table', array(
+    			'header' => array('Ciudad', 'Provincia','Cantidad de libros comprados'), 
+    			'rows' => $out,
+    		//	'attributes' => array('width' => '100%')
+			));
+		$data[]=array('<h2>Ciudades </h2>');
+		$data[]=array( $Ciudades);
+		
+		
+	}
+	
+	
+	
+	
+	
+	//Titulos mas Comprados
+	$query=db_select('cnbp_reporte_compras_libros','reporte');
+	$query->condition('reporte.event', variable_get('reporte_compras_evento_actual'),'=');
+	$query->fields('reporte',array('id_libro'));
+	$query->addExpression('COUNT(id_comprador)', 'suma');	
+	$query->groupBy('id_libro');
+	$query->orderBy('suma', 'DESC');
+	$query->range(0, 100);
+	$result= $query->execute();
+	if($result->rowCount()>0){ 
+		$puesto=0;
+		foreach($result as $libro){
+			$puesto++;
+			$dataLibro=node_load($libro->id_libro);
+			//print_r($dataLibro);
+			$libros[]=array($puesto, l($dataLibro->title,'node/'.$dataLibro->nid), $dataLibro->field_autor_es['und'][0]['value'], $dataLibro->field_tipo_publico['und'][0]['value'], $dataLibro->field_sello['und'][0]['value'], $dataLibro->field_razon_social_editorial['und'][0]['value'], $libro->suma);
+		}
+		$titulosMasSolicitados= theme('table', array(
+    			'header' => array('Puesto', 'Título','Autor', 'Tematica', 'Sello', 'Razon Social', 'Cantidad de veces que fue adquirido'), 
+    			'rows' => $libros,
+    		//	'attributes' => array('width' => '100%')
+			));
+		$data[]=array('<h2>Títulos más solicitados</h2>');
+		$data[]=array($titulosMasSolicitados);
+		
+	}
+
+
+
+	//Editoriales
+
+	
+	/*$result=db_query('SELECT s.field_sello_value AS sello, COUNT(r.id_libro)  AS suma
+FROM  {field_data_field_sello}  s
+INNER JOIN {cnbp_reporte_compras_libros} r WHERE s.entity_id = r.id_libro
+GROUP BY s.field_sello_value ORDER BY suma DESC');
+	*/
+		$result=db_query('SELECT s.field_sello_value AS sello, COUNT(r.id_libro)  AS suma
+FROM  {field_data_field_sello}  s
+INNER JOIN {cnbp_reporte_compras_libros} r WHERE s.entity_id = r.id_libro AND r.event = :event GROUP BY s.field_sello_value ORDER BY suma DESC', array(':event'=>variable_get('reporte_compras_evento_actual')));
+	
+	
+	
+	
+	
+	if($result->rowCount()>0){ 
+		foreach($result as $item){
+			
+			$editoras[]=array( $item->sello, $item->suma);
+		}
+		$rankingEditoriales= theme('table', array(
+    			'header' => array( 'Sello','Libros vendidos'), 
+    			'rows' => $editoras,
+    		//	'attributes' => array('width' => '100%')
+			));
+		$data[]=array('<h2>Ventas por Sello</h2>');
+		$data[]=array ($rankingEditoriales);
+		
+	}
+
+
+
+//Autores
+
+	
+	$result=db_query('SELECT s.field_autor_es_value AS sello, COUNT(r.id_libro)  AS suma
+FROM  {field_data_field_autor_es}  s
+INNER JOIN {cnbp_reporte_compras_libros} r WHERE s.entity_id = r.id_libro AND r.event = :event 
+GROUP BY s.field_autor_es_value ORDER BY suma DESC', array(':event'=>variable_get('reporte_compras_evento_actual')));
+	
+	
+	
+	
+	
+	if($result->rowCount()>0){ 
+		foreach($result as $item){
+			
+			$autores[]=array( $item->sello, $item->suma);
+		}
+		$rankingAutores= theme('table', array(
+    			'header' => array( 'Autor','Libros vendidos'), 
+    			'rows' => $autores,
+    		//	'attributes' => array('width' => '100%')
+			));
+		$data[]=array('<h2>Ventas por autor</h2>');
+		$data[]=array($rankingAutores);
+		
+	}
+
+
+
+
+
+
+
+
+	//Output
+	$resultados=theme('table', array(
+    			'header' => array('Reporte '.variable_get('reporte_compras_evento_actual')), 
+    			'rows' => $data,
+    		//	'attributes' => array('width' => '100%')
+			));
+	$style='
+		#reporteLibros table * {font-size:16px; font-family:"Lucida Grande", "Lucida Sans Unicode", sans-serif; }
+			.messages,.breadcrumb, #branding  {display:none !important}
+		#reporteLibros h2 {font-size:25px; font-weight:100; margin-top:30px}
+		#reporteLibros h3 {font-size:35px; color:red}
+		
+	
+	';			
+	drupal_add_css($style,$option['type'] = 'inline');
+	
+	return '<h1>Datos de análisis libros adquiridos en '.variable_get('reporte_compras_evento_actual').'</h1><div id="reporteLibros">'.$resultados.'</div>';
+}
+
+
+
+function cmp($a, $b)
+{
+    if ($a['suma'] == $b['suma']) {
+        return 0;
+    }
+    return ($a['suma'] < $b['suma']) ? -1 : 1;
+}

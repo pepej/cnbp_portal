@@ -1,0 +1,177 @@
+<?php
+/*Hook Init*/
+function cnbp_init(){
+
+    if(arg(0)=='user' && is_numeric(arg(1)) && empty(arg(2))){
+        drupal_goto('bipop/'.arg(1));
+    }
+
+    /*Capacitaciones: Autoload y validaciones JS*/
+    if ($node = menu_get_object()) {
+      if($node->type=='capacitaci_n' && arg(0)=='node'){
+        global $user;
+        $user = user_load($user->uid);
+        $reg =$user->field_n_mero_de_registro['und'][0]['value'];
+        $name=$user->field_nombre_de_la_biblioteca['und'][0]['value'];
+        $prov=$user->field_direcci_n['und'][0]['province'];
+        $loc =$user->field_direcci_n['und'][0]['city'];
+
+
+        $js='
+
+            if(jQuery("#edit-submitted-provincia").val()==""){jQuery("#edit-submitted-provincia").val("'.$prov.'");}
+            if(jQuery("#edit-submitted-localidad").val()==""){jQuery("#edit-submitted-localidad").val("'.$loc.'");}
+            if(jQuery("#edit-submitted-nombre-de-la-bp").val()==""){jQuery("#edit-submitted-nombre-de-la-bp").val("'.$name.'");}
+            if(jQuery("#edit-submitted-nro-registro").val()==""){jQuery("#edit-submitted-nro-registro").val("'.$reg.'");}
+
+
+
+        jQuery(\'.webform-component--correo-electronico-particular-de-la-persona-que-hara-el-curso\').append(\'<label>Repita su email particular</label><input type="email" class="email clear form-text form-email required" id="copiaMail" size="60"\>\');
+
+
+         jQuery(".webform-submit").click(function(){
+               /* if(jQuery("#edit-submitted-correo-electronico-particular-de-la-persona-que-hara-el-curso").val()==jQuery("#edit-submitted-correo-electronico-alternativo").val()){
+                    alert("El correo electrónico alternativo debe ser diferente al particular.");
+                    jQuery("#edit-submitted-correo-electronico-particular-de-la-persona-que-hara-el-curso").addClass("error");
+                    jQuery("#edit-submitted-correo-electronico-alternativo").addClass("error");
+                    return false;
+                }*/
+                /*if(jQuery("#copiaMail").val()!=jQuery("#edit-submitted-correo-electronico-particular-de-la-persona-que-hara-el-curso").val()){
+                    alert("Las direcciones de correo no coinciden.");
+                    jQuery("#edit-submitted-correo-electronico-particular-de-la-persona-que-hara-el-curso").addClass("error");
+                    jQuery("#copiaMail").addClass("error");
+                    return false;
+                }*/
+           });
+
+
+        ';
+        drupal_add_js($js, array('type' => 'inline', 'scope' => 'footer', 'weight' => 5));
+
+      }
+    }
+
+}
+
+
+
+
+/**
+ * Implements hook_block_info().
+ */
+function cnbp_block_info() {
+    $blocks = array();
+    $blocks['header_bipop'] = array(
+        'info'    => t('[custom] Header Bipop'),
+        'cache'   => DRUPAL_NO_CACHE
+    );
+
+    return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function cnbp_block_view($delta='') {
+    $block = array();
+
+    switch($delta) {
+        case 'header_bipop' :
+            $block['content'] = cnbp_header_bipop();
+            break;
+
+
+
+    }
+
+    return $block;
+}
+
+
+
+
+/**
+ * Implements hook_theme().
+ */
+function cnbp_theme()
+{
+    $theme = array();
+    $theme['header_bipop'] = array(
+        'render element'    => 'block',
+        'template'          => 'header-bipop',
+        'path'              => drupal_get_path('module', 'cnbp') . '/templates',
+    );
+
+
+    return $theme;
+}
+
+
+
+
+/**
+ * Callbacks functions().
+ */
+
+function cnbp_header_bipop() {
+
+    if(arg(1)!=""){
+        $bpUser= user_load(array('uid'=>arg(1)));
+
+
+        if($uri = $bpUser->field_foto_de_portada['und'][0]['uri']){
+            $imgURL = file_create_url($uri);
+        }
+        else {
+            $imgURL = 'http://www.conabip.gob.ar/sites/default/files/2016-09-14.png' ;
+        }
+
+
+        if($bpUser->field_sitio_web['und'][0]['url']){$social='<a class="lnkWebsite" href="'.$bpUser->field_sitio_web['und'][0]['url'].'"></a>';}
+        if($bpUser->field_facebook['und'][0]['url']){$social.='<a class="lnkFacebook" href="'.$bpUser->field_facebook['und'][0]['url'].'"></a>';}
+        if($bpUser->field_twitter['und'][0]['url']){$social.='<a class="lnkTwitter" href="'.$bpUser->field_twitter['und'][0]['url'].'"></a>';}
+
+
+        if(@count($bpUser->field_servicios['und'])>0){
+            $services='<div class="bipopServices"><h3>Servicios de la Biblioteca:</h3>';
+            foreach ($bpUser->field_servicios['und'] as $key) {
+              $services.='<img src="'.base_path().'sites/default/files/iconosServicios/'.str_replace(' ', '_',$key['value']).'.png"  alt="'.$key['value'].'" title="'.$key['value'].'"/>';
+            }
+            $services.='</div>';
+      }
+
+
+
+
+        
+        if($bpUser->field_direcci_n['und'][0]['latitude'] && $bpUser->field_direcci_n['und'][0]['longitude']){
+            $mapLink = '<a title="Ver en Google Maps" href="http://www.google.com/maps/place/'.$bpUser->field_direcci_n['und'][0]['latitude'].','.$bpUser->field_direcci_n['und'][0]['longitude'].'" target="_blank"><span class="glyphicon glyphicon-map-marker"></span></a>';
+        }
+        else {
+            $mapLink = "";
+        }
+
+        $type       = 'bpWall';
+        $image      = '<img class="img-rounded" src="'.$imgURL.'">';
+        $bp         = $bpUser->field_nombre_de_la_biblioteca['und'][0]['value'].'<br><span>Registro:'.$bpUser->field_n_mero_de_registro['und'][0]['value'].'</span>';
+        //$social     = 'social';
+        $address    =  '<div class="mapdata">'.$mapLink.$bpUser->field_direcci_n['und'][0]['street'].'<br>'.$bpUser->field_direcci_n['und'][0]['city'].','.$bpUser->field_direcci_n['und'][0]['province'].'</div>';
+        //$services   = 'Servicios de la Biblioteca';
+    }
+    else {
+        $type       = 'allWall';
+        //$image      = "ImageHere";
+    }
+
+    $params = array(
+        'profile'   => $bpUser,
+        'type'      => $type,
+        'image'     => $image,
+        'bp'        => $bp,
+        'social'    => $social,
+        'address'   => $address,
+        'services'  => $services,
+        );
+
+    return theme('header_bipop',$params);
+}
